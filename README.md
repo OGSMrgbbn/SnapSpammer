@@ -1,4 +1,5 @@
-![Uploading ChatGPT Image 27. März 2026, 10_43_15.png…]()
+<img width="1536" height="1024" alt="tool" src="https://github.com/user-attachments/assets/91aa95f7-762a-4a0f-aa98-b29312442ec5" />
+
 
 
 # SnapSpammer
