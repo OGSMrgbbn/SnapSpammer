@@ -1,0 +1,36 @@
+{
+  "loop_delay": 0.1,
+  "click_delay": 0.4,
+  "position_delay": 0.5,
+  "shortcut_count": 1,
+  "positions": {
+    "switch_to_camera": [
+      995,
+      1280
+    ],
+    "send_to": [
+      995,
+      1280
+    ],
+    "shortcut": [
+      2909,
+      84
+    ],
+    "select_all": [
+      1509,
+      650
+    ]
+  },
+  "positions_spam": {},
+  "positions_multi_snap": [],
+  "positions_multi_chat": [],
+  "auto_open_readme": true,
+  "readme_url": "https://github.com/OGSMrgbbn/SnapSpammer/blob/main/readme.md",
+  "snapchat_login": "https://web.snapchat.com/",
+  "spam_message": "test",
+  "spam_count": 10,
+  "spam_delay": 0.3,
+  "turbo_mode": true,
+  "multi_snap_count": 10,
+  "multi_chat_count": 10
+}
