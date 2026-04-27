@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SnapSpammer - main.py (TURBO EDITION)
-import os, sys, time, json, platform, webbrowser, urllib.request, threading, itertools
+import os, sys, time, json, platform, webbrowser, urllib.request, threading, itertools, hashlib
 from pathlib import Path
 from colorama import Fore, Back, Style, init
 init(autoreset=True)
@@ -30,7 +30,8 @@ DEFAULT_SETTINGS = {
     "spam_count": 50,
     "spam_delay": 0.2,
     "turbo_mode": False,     # Normal mode by default
-    "ia_actions": [],         # Interaktionsassistent action sequence
+    "ia_pairs": [],            # Klick+Tippen-Paare [[x,y,text], ...]
+    "premium_key": "",         # Premium-Lizenzschlüssel
     # --- RandomTextSpammer (Premium) ---
     "rts_prefix":      "",      # Text vor dem Zufallsblock, z.B. 'hallo '
     "rts_suffix":      "",      # Text nach dem Zufallsblock, z.B. ' @mrgbbn.de'
@@ -66,7 +67,50 @@ CYBER = [Fore.CYAN, Fore.LIGHTCYAN_EX, Fore.WHITE, Fore.LIGHTGREEN_EX]
 VERSION_FILE = BASE_DIR / "version.txt"
 VERSION = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else "0.0.0"
 VERSION_URL = "https://raw.githubusercontent.com/OGSMrgbbn/SnapSpammer/main/version.txt"
-RELEASES_URL = "https://github.com/OGSMrgbbn/SnapSpammer/releases"
+RELEASES_URL     = "https://github.com/OGSMrgbbn/SnapSpammer/releases"
+PREMIUM_KEYS_URL = "https://raw.githubusercontent.com/OGSMrgbbn/SnapSpammer/main/premium_keys.txt"
+
+# ----------------------------------------------------------------------
+# Premium-Checker
+# ----------------------------------------------------------------------
+_premium_cache: bool | None = None
+
+def _hash_key(raw: str) -> str:
+    return hashlib.sha256(raw.strip().encode()).hexdigest()
+
+def is_premium(settings) -> bool:
+    """True wenn der gespeicherte Key in der Remote-Hashliste steht."""
+    global _premium_cache
+    if _premium_cache is not None:
+        return _premium_cache
+    raw_key = settings.get("premium_key", "").strip()
+    if not raw_key:
+        _premium_cache = False
+        return False
+    try:
+        with urllib.request.urlopen(PREMIUM_KEYS_URL, timeout=5) as resp:
+            valid_hashes = {line.strip() for line in resp.read().decode().splitlines() if line.strip()}
+        _premium_cache = _hash_key(raw_key) in valid_hashes
+    except Exception:
+        # Offline – akzeptiere gespeicherten Key ohne Netzwerk
+        _premium_cache = bool(raw_key)
+    return _premium_cache
+
+def set_premium_key(settings):
+    """Key eingeben + sofort prüfen, speichern und Cache zurücksetzen."""
+    global _premium_cache
+    _premium_cache = None
+    print("")
+    cyber_print("═══ PREMIUM-AKTIVIERUNG ═══", delay=0.001)
+    print("")
+    key = input(f"{SNAP_Y}  Premium-Key eingeben: {Style.RESET_ALL}").strip()
+    settings["premium_key"] = key
+    save_settings(settings)
+    _premium_cache = None
+    if is_premium(settings):
+        fire_print("  ✅ PREMIUM AKTIVIERT!", delay=0.002)
+    else:
+        instant_print("  ❌ Ungültiger Key.", SNAP_R)
 
 def _parse_version(value):
     """Parse semantic-ish versions like 1.0.3 into comparable tuples."""
@@ -459,17 +503,15 @@ class MessageSpammer:
 # Klick-/Tipp-Sequenzen, Nutzer behält volle Kontrolle
 # ----------------------------------------------------------------------
 class InteraktionsAssistent:
-    """Konfigurierbare Aktionssequenz: Klicken + Tippen.
-    Alle Aktionen werden vor Ausführung angezeigt.
-    Nutzer bestätigt aktiv – F6 stoppt sofort."""
-
-    ACTION_CLICK = "click"
-    ACTION_TYPE  = "type"
-    ACTION_PAUSE = "pause"
+    """Klick→Tippen-Paarsystem.
+    Jedes Paar = (Mausposition, Text).
+    Abfolge: klick → tippe → klick → tippe → ...
+    Nur Premium-Nutzer können > 1 Durchlauf machen."""
 
     def __init__(self, settings):
         self.settings = settings
-        self.actions  = list(settings.get("ia_actions", []))
+        # Paare: [{"pos": [x,y], "text": "...", "label": "..."}]
+        self.pairs = list(settings.get("ia_pairs", []))
 
     # ── Konfiguration ─────────────────────────────────────────────
     def configure(self):
@@ -480,59 +522,47 @@ class InteraktionsAssistent:
         print_banner()
         rainbow_print("═══ INTERAKTIONSASSISTENT – KONFIGURATION ═══", delay=0.001)
         print("")
-        instant_print("  [1] Klick erfassen   [2] Text tippen   [3] Pause   [4] Fertig", SNAP_C)
+        instant_print("  Für jedes Paar: Mausposition festlegen + Text eingeben.", SNAP_C)
+        instant_print("  Leer lassen beim Namen → automatischer Name.", SNAP_W)
+        instant_print("  Anzahl Paare selbst bestimmen.", SNAP_W)
         print("")
-        self.actions = []
+        self.pairs = []
         while True:
-            instant_print(f"  Aktionen bisher: {len(self.actions)}", SNAP_Y)
-            cmd = input(f"{SNAP_Y}  Aktion > {Style.RESET_ALL}").strip()
-            if cmd == "1":
-                label = input(f"{SNAP_C}  Name für diesen Klick (z.B. 'Senden'): {Style.RESET_ALL}").strip() or f"Klick {len(self.actions)+1}"
-                instant_print("  Bewege Maus zur Zielposition und drücke Y ...", SNAP_W)
-                while not keyboard.is_pressed("y"):
-                    time.sleep(0.02)
-                pos = list(pyautogui.position())
-                self.actions.append({"type": self.ACTION_CLICK, "pos": pos, "label": label})
-                instant_print(f"  ✓ '{label}' @ ({pos[0]}, {pos[1]}) gespeichert", SNAP_G)
-                time.sleep(0.3)
-            elif cmd == "2":
-                label = input(f"{SNAP_C}  Name für diese Eingabe (z.B. 'Nachricht'): {Style.RESET_ALL}").strip() or f"Text {len(self.actions)+1}"
-                text  = input(f"{SNAP_Y}  Text eingeben: {Style.RESET_ALL}")
-                self.actions.append({"type": self.ACTION_TYPE, "text": text, "label": label})
-                instant_print(f"  ✓ '{label}' → \"{text[:40]}\" gespeichert", SNAP_G)
-            elif cmd == "3":
-                try:
-                    secs = float(input(f"{SNAP_C}  Pause in Sekunden: {Style.RESET_ALL}").strip())
-                except ValueError:
-                    secs = 0.5
-                self.actions.append({"type": self.ACTION_PAUSE, "duration": secs, "label": f"Pause {secs}s"})
-                instant_print(f"  ✓ Pause {secs}s gespeichert", SNAP_G)
-            elif cmd == "4":
+            pnr = len(self.pairs) + 1
+            print("")
+            cyber_print(f"─── PAAR #{pnr} ────────────────────────────────────────────────", delay=0.001)
+            # ―― Position ――
+            label = input(f"{SNAP_C}  Name für dieses Paar (ENTER = Paar #{pnr}): {Style.RESET_ALL}").strip() or f"Paar #{pnr}"
+            instant_print(f"  Bewege Maus zur Klick-Position für '{label}', drücke Y ...", SNAP_W)
+            while not keyboard.is_pressed("y"):
+                time.sleep(0.02)
+            pos = list(pyautogui.position())
+            time.sleep(0.3)
+            instant_print(f"  ✓ Klick-Position: ({pos[0]}, {pos[1]})", SNAP_G)
+            # ―― Text ――
+            text = input(f"{SNAP_Y}  Text der getippt wird (ENTER = leer lassen): {Style.RESET_ALL}")
+            self.pairs.append({"pos": pos, "text": text, "label": label})
+            instant_print(f"  ✓ '{label}' gespeichert  →  klick({pos[0]},{pos[1]}) + tippe \"{text[:40]}\"", SNAP_G)
+            # Weiteres Paar?
+            more = input(f"{SNAP_M}  Noch ein Paar hinzufügen? (j/n) > {Style.RESET_ALL}").strip().lower()
+            if more != "j":
                 break
-            else:
-                instant_print("  ⚠ Ungültige Eingabe.", SNAP_R)
-        self.settings["ia_actions"] = self.actions
+        self.settings["ia_pairs"] = self.pairs
         save_settings(self.settings)
         print("")
-        fire_print(f"🔒 {len(self.actions)} Aktionen gespeichert!", delay=0.002)
+        fire_print(f"🔒 {len(self.pairs)} Paare gespeichert!", delay=0.002)
 
     # ── Vorschau ──────────────────────────────────────────────────
     def preview(self):
-        print("")
-        if not self.actions:
-            instant_print("  ⚠ Keine Aktionen konfiguriert. Erst Option [10] nutzen!", SNAP_R)
+        if not self.pairs:
+            instant_print("  ⚠ Keine Paare konfiguriert. Erst Option [10] nutzen!", SNAP_R)
             return False
-        cyber_print("─── AKTIONSPLAN ─────────────────────────────────────", delay=0.001)
-        for i, a in enumerate(self.actions, 1):
-            t = a.get("type")
-            if t == self.ACTION_CLICK:
-                pos = a.get("pos", [0, 0])
-                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_G}KLICK {Style.RESET_ALL}  {SNAP_W}{a.get('label','')}{Style.RESET_ALL}  @ ({pos[0]}, {pos[1]})")
-            elif t == self.ACTION_TYPE:
-                preview_t = str(a.get("text", ""))[:40]
-                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_M}TIPPEN{Style.RESET_ALL}  {SNAP_W}{a.get('label','')}{Style.RESET_ALL}  → \"{preview_t}\"")
-            elif t == self.ACTION_PAUSE:
-                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_Y}PAUSE {Style.RESET_ALL}  {a.get('duration', 0.5)}s")
+        print("")
+        cyber_print("─── AKTIONSPLAN (Klick → Tippen) ────────────────────────", delay=0.001)
+        for i, p in enumerate(self.pairs, 1):
+            pos  = p.get("pos", [0, 0])
+            text = str(p.get("text", ""))[:50]
+            print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_G}KLICK{Style.RESET_ALL} @ ({pos[0]},{pos[1]})  {SNAP_M}➔ TIPPE{Style.RESET_ALL} \"{text}\"  {SNAP_W}({p.get('label','')}){Style.RESET_ALL}")
         cyber_print("──────────────────────────────────────────────────────", delay=0.001)
         return True
 
@@ -545,6 +575,10 @@ class InteraktionsAssistent:
         if not self.preview():
             input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
             return
+        premium = is_premium(self.settings)
+        if repeat > 1 and not premium:
+            instant_print("  ⚠ Mehrfache Wiederholungen sind nur für Premium-Nutzer! (Option [15])", SNAP_R)
+            repeat = 1
         print("")
         print(f"  {SNAP_Y}Wiederholungen: {repeat}x{Style.RESET_ALL}   {SNAP_R}F6 = Abbruch jederzeit{Style.RESET_ALL}")
         print("")
@@ -559,30 +593,26 @@ class InteraktionsAssistent:
                 break
             print("")
             fire_print(f"  ▶ Durchlauf {run_nr}/{repeat}", delay=0.001)
-            for a in self.actions:
+            for p in self.pairs:
                 if keyboard and keyboard.is_pressed("f6"):
                     print("")
                     instant_print("  ⏹ Durch F6 gestoppt.", SNAP_Y)
                     aborted = True
                     break
-                t = a.get("type")
-                if t == self.ACTION_CLICK:
-                    pos = a.get("pos", [0, 0])
-                    sys.stdout.write(f"\r{SNAP_C}  → KLICK   {a.get('label','')}  @ ({pos[0]},{pos[1]}){Style.RESET_ALL}   ")
-                    sys.stdout.flush()
-                    pyautogui.moveTo(pos[0], pos[1])
-                    time.sleep(click_delay)
-                    pyautogui.click()
-                elif t == self.ACTION_TYPE:
-                    text = a.get("text", "")
-                    sys.stdout.write(f"\r{SNAP_M}  → TIPPEN  {a.get('label','')}  \"{text[:30]}\"{Style.RESET_ALL}   ")
+                pos  = p.get("pos", [0, 0])
+                text = p.get("text", "")
+                # ―― Klick ――
+                sys.stdout.write(f"\r{SNAP_C}  → KLICK  {p.get('label','')} @ ({pos[0]},{pos[1]}){Style.RESET_ALL}   ")
+                sys.stdout.flush()
+                pyautogui.moveTo(pos[0], pos[1])
+                time.sleep(click_delay)
+                pyautogui.click()
+                time.sleep(0.08)
+                # ―― Tippen ――
+                if text:
+                    sys.stdout.write(f"\r{SNAP_M}  → TIPPE  \"{text[:40]}\"{Style.RESET_ALL}   ")
                     sys.stdout.flush()
                     pyautogui.write(text, interval=0.03)
-                elif t == self.ACTION_PAUSE:
-                    dur = float(a.get("duration", 0.5))
-                    sys.stdout.write(f"\r{SNAP_Y}  → PAUSE   {dur}s{Style.RESET_ALL}   ")
-                    sys.stdout.flush()
-                    time.sleep(dur)
                 time.sleep(0.05)
         print("")
         print("")
@@ -893,7 +923,8 @@ def main():
         # Status display
         turbo = settings.get('turbo_mode', True)
         turbo_status = f"{SNAP_G}⚡ TURBO ON{Style.RESET_ALL}" if turbo else f"{SNAP_R}TURBO OFF{Style.RESET_ALL}"
-        print(f"  {turbo_status}  |  Loop: {settings.get('loop_delay')}s  |  Click: {settings.get('click_delay')}s")
+        prem_status   = f"{SNAP_Y}🔑 PREMIUM{Style.RESET_ALL}" if is_premium(settings) else f"{SNAP_W}FREE{Style.RESET_ALL}"
+        print(f"  {turbo_status}  |  Loop: {settings.get('loop_delay')}s  |  Click: {settings.get('click_delay')}s  |  {prem_status}")
         print("")
         
         # Menu options with colors
@@ -906,11 +937,12 @@ def main():
         print(f"  {SNAP_C}[7]{Style.RESET_ALL} {SNAP_W}⏱️  Estimate Time{Style.RESET_ALL}")
         print(f"  {SNAP_C}[8]{Style.RESET_ALL} {SNAP_W}❓ Help{Style.RESET_ALL}")
         print(f"  {SNAP_R}[9]{Style.RESET_ALL} {SNAP_W}🚪 Exit{Style.RESET_ALL}")
-        print(f"  {SNAP_B}[10]{Style.RESET_ALL} {SNAP_C}🤖 Interaktionsassistent – Konfigurieren{Style.RESET_ALL}")
-        print(f"  {SNAP_B}[11]{Style.RESET_ALL} {SNAP_C}▶  Interaktionsassistent – Starten{Style.RESET_ALL}")
+        print(f"  {SNAP_B}[10]{Style.RESET_ALL} {SNAP_C}🤖 Klick+Tippen-Assistent – Konfigurieren{Style.RESET_ALL}")
+        print(f"  {SNAP_B}[11]{Style.RESET_ALL} {SNAP_C}▶  Klick+Tippen-Assistent – Starten{Style.RESET_ALL}")
         print(f"  {SNAP_M}[12]{Style.RESET_ALL} {SNAP_Y}🎲 Random-Text Spammer – Einstellungen{Style.RESET_ALL}")
         print(f"  {SNAP_M}[13]{Style.RESET_ALL} {SNAP_Y}📍 Random-Text Spammer – Positionen{Style.RESET_ALL}")
         print(f"  {SNAP_M}[14]{Style.RESET_ALL} {SNAP_Y}🚀 Random-Text Spammer – Starten{Style.RESET_ALL}")
+        print(f"  {SNAP_Y}[15]{Style.RESET_ALL} {SNAP_Y}🔑 Premium-Key eingeben / prüfen{Style.RESET_ALL}")
         print("")
         c = input(f"{SNAP_Y}Select > {Style.RESET_ALL}").strip()
 
@@ -984,19 +1016,29 @@ def main():
         elif c == '11':
             clear()
             print_banner()
-            rainbow_print("═══ INTERAKTIONSASSISTENT – STARTEN ═══", delay=0.001)
+            rainbow_print("═══ KLICK+TIPPEN-ASSISTENT – STARTEN ═══", delay=0.001)
             ia = InteraktionsAssistent(settings)
-            if not ia.actions:
-                instant_print("⚠ Keine Aktionen konfiguriert. Erst Option [10] nutzen!", SNAP_R)
+            if not ia.pairs:
+                instant_print("⚠ Keine Paare konfiguriert. Erst Option [10] nutzen!", SNAP_R)
                 input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
             else:
-                try:
-                    repeat = int(input(f"{SNAP_Y}  Wie oft wiederholen? (Standard: 1) > {Style.RESET_ALL}").strip() or "1")
-                except ValueError:
+                if is_premium(settings):
+                    try:
+                        repeat = int(input(f"{SNAP_Y}  Wie oft wiederholen? (Standard: 1) > {Style.RESET_ALL}").strip() or "1")
+                    except ValueError:
+                        repeat = 1
+                else:
+                    instant_print("  🔑 Wiederholungen = Premium-Feature. 1x wird ausgeführt.", SNAP_Y)
                     repeat = 1
                 ia.run(repeat)
                 save_settings(settings)
                 input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+
+        elif c == '15':
+            clear()
+            print_banner()
+            set_premium_key(settings)
+            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
 
         elif c == '12':
             clear()
