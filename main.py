@@ -654,7 +654,10 @@ class RandomTextSpammer:
     def _generate(self):
         parts = []
         for b in self.blocks:
-            if b.get("type") == "fest":
+            t = b.get("type")
+            if t == "click":
+                continue
+            elif t == "fest":
                 parts.append(str(b.get("value", "")))
             else:  # random
                 charset = self.CHARSETS.get(b.get("charset", "mixed"), self.CHARSETS["mixed"])
@@ -669,7 +672,7 @@ class RandomTextSpammer:
         rainbow_print("═══ TEXT-BAUKASTEN – KONFIGURATION ═══", delay=0.001)
         print("")
         instant_print("  Baue deinen Text Block für Block zusammen.", SNAP_C)
-        instant_print("  Jeder Block ist entweder ein ZUFALLSBLOCK oder ein FESTER TEXT.", SNAP_W)
+        instant_print("  Blöcke: ZUFALLSTEXT, FESTER TEXT oder MAUSKLICK.", SNAP_W)
         print("")
 
         self.blocks = []
@@ -708,8 +711,23 @@ class RandomTextSpammer:
                 instant_print(f"  ✓ Fester Block #{bnr}: '{value}'", SNAP_G)
 
             elif cmd == "3":
+                # Mausklick
+                if pyautogui is None or keyboard is None:
+                    instant_print("  ⚠ pyautogui/keyboard nicht installiert!", SNAP_R)
+                    continue
+                print("")
+                label = input(f"{SNAP_C}  Name für diesen Klick (z.B. 'Eingabefeld'): {Style.RESET_ALL}").strip() or f"Klick #{bnr}"
+                instant_print(f"  Bewege Maus zur Ziel-Position für '{label}', drücke Y ...", SNAP_W)
+                while not keyboard.is_pressed("y"):
+                    time.sleep(0.02)
+                click_pos = list(pyautogui.position())
+                time.sleep(0.3)
+                self.blocks.append({"type": "click", "pos": click_pos, "label": label})
+                instant_print(f"  ✓ Mausklick #{bnr}: '{label}' @ ({click_pos[0]}, {click_pos[1]})", SNAP_G)
+
+            elif cmd == "4":
                 if not self.blocks:
-                    instant_print("  ⚠ Mindestens ein Block erforderlich!", SNAP_R)
+                    instant_print("  ⚠ Mindestens einen Block hinzufügen!", SNAP_R)
                     continue
                 break
             else:
