@@ -748,8 +748,12 @@ class RandomTextSpammer:
         print("")
         cyber_print("─── BAUKASTEN-PLAN ──────────────────────────────────", delay=0.001)
         for i, b in enumerate(self.blocks, 1):
-            if b.get("type") == "fest":
+            t = b.get("type")
+            if t == "fest":
                 print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_G}FEST   {Style.RESET_ALL}  → '{b.get('value','')}'")
+            elif t == "click":
+                cp = b.get("pos", [0, 0])
+                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_Y}KLICK  {Style.RESET_ALL}  → {b.get('label','')} @ ({cp[0]}, {cp[1]})")
             else:
                 print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_M}RANDOM {Style.RESET_ALL}  → {b.get('length',8)}× {b.get('charset','mixed')}  (Beispiel: '{self._generate_block(b)}')")
         cyber_print("────────────────────────────────────────────────────", delay=0.001)
@@ -822,14 +826,32 @@ class RandomTextSpammer:
                 print("")
                 instant_print("  ⏹ Durch F6 gestoppt.", SNAP_Y)
                 break
-            text = self._generate()
-            pyautogui.click(inp[0], inp[1])
-            time.sleep(click_delay)
-            pyautogui.write(text, interval=0.02)
-            time.sleep(click_delay)
-            pyautogui.click(send[0], send[1])
+            # Jeden Block der Reihe nach ausführen
+            text_parts = []
+            for b in self.blocks:
+                t = b.get("type")
+                if t == "click":
+                    cp = b.get("pos", [0, 0])
+                    sys.stdout.write(f"\r{SNAP_Y}  [{i:04d}/{count}] KLICK '{b.get('label','')}' @ ({cp[0]},{cp[1]}){Style.RESET_ALL}   ")
+                    sys.stdout.flush()
+                    pyautogui.click(cp[0], cp[1])
+                    time.sleep(click_delay)
+                elif t == "fest":
+                    text_parts.append(str(b.get("value", "")))
+                else:  # random
+                    charset = self.CHARSETS.get(b.get("charset", "mixed"), self.CHARSETS["mixed"])
+                    length  = max(1, int(b.get("length", 8)))
+                    text_parts.append("".join(random.choices(charset, k=length)))
+            # Gesammelten Text tippen (falls vorhanden)
+            full_text = "".join(text_parts)
+            if full_text:
+                pyautogui.click(inp[0], inp[1])
+                time.sleep(click_delay)
+                pyautogui.write(full_text, interval=0.02)
+                time.sleep(click_delay)
+                pyautogui.click(send[0], send[1])
             sent += 1
-            sys.stdout.write(f"\r{SNAP_M}  [{i:04d}/{count}] → '{text[:70]}'{Style.RESET_ALL}   ")
+            sys.stdout.write(f"\r{SNAP_M}  [{i:04d}/{count}] → '{full_text[:70]}'{Style.RESET_ALL}   ")
             sys.stdout.flush()
             time.sleep(delay)
 
