@@ -679,7 +679,8 @@ class RandomTextSpammer:
             cyber_print(f"─── BLOCK #{bnr} ─────────────────────────────────────────", delay=0.001)
             print(f"  {SNAP_G}[1]{Style.RESET_ALL} {SNAP_Y}Zufallsblock{Style.RESET_ALL}  – zufällige Zeichen, Länge + Zeichensatz wählbar")
             print(f"  {SNAP_G}[2]{Style.RESET_ALL} {SNAP_C}Fester Text {Style.RESET_ALL}  – genau dieser Text, immer gleich")
-            print(f"  {SNAP_R}[3]{Style.RESET_ALL} Fertig – Baukasten abschließen")
+            print(f"  {SNAP_G}[3]{Style.RESET_ALL} {SNAP_M}Mausklick   {Style.RESET_ALL}  – Mausposition erfassen und klicken")
+            print(f"  {SNAP_R}[4]{Style.RESET_ALL} Fertig – Baukasten abschließen")
             print("")
             cmd = input(f"{SNAP_Y}  Block-Typ > {Style.RESET_ALL}").strip()
 
