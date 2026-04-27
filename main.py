@@ -40,6 +40,7 @@ DEFAULT_SETTINGS = {
     "rts_count":       10,      # Wie oft absenden
     "rts_delay":       0.3,     # Pause zwischen Sendungen
     "rts_positions":   {},      # input_field + send_button
+    "rts_blocks":      [],      # Baukasten-Blöcke
 }
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -631,28 +632,135 @@ class InteraktionsAssistent:
 import random, string as _string
 
 class RandomTextSpammer:
-    """Premium: Generiert einzigartigen Zufallstext je Sendung.
-    Nutzer stellt Prefix, Suffix, Länge, Zeichensatz und Positionen ein."""
+    """Baukasten-System: Text aus beliebig vielen Blöcken zusammenstellen.
+    Jeder Block ist entweder 'random' (Länge + Zeichensatz wählbar)
+    oder 'fest' (fixer Text). Alle Blöcke werden in settings.json gespeichert."""
 
     CHARSETS = {
         "letters": _string.ascii_letters,
         "digits":  _string.digits,
         "mixed":   _string.ascii_letters + _string.digits,
         "hex":     "0123456789abcdef",
+        "lower":   _string.ascii_lowercase,
+        "upper":   _string.ascii_uppercase,
     }
 
     def __init__(self, settings):
         self.settings = settings
+        # blocks: [{"type": "random"|"fest", "value": ..., "length": ..., "charset": ...}, ...]
+        self.blocks = list(settings.get("rts_blocks", []))
 
-    # ── Zufallstext generieren ─────────────────────────────────────────
+    # ── Text aus Blöcken generieren ────────────────────────────────────
     def _generate(self):
-        charset = self.CHARSETS.get(
-            self.settings.get("rts_charset", "mixed"),
-            self.CHARSETS["mixed"]
-        )
-        length  = max(1, int(self.settings.get("rts_length", 12)))
-        rand    = "".join(random.choices(charset, k=length))
-        return self.settings.get("rts_prefix", "") + rand + self.settings.get("rts_suffix", "")
+        parts = []
+        for b in self.blocks:
+            if b.get("type") == "fest":
+                parts.append(str(b.get("value", "")))
+            else:  # random
+                charset = self.CHARSETS.get(b.get("charset", "mixed"), self.CHARSETS["mixed"])
+                length  = max(1, int(b.get("length", 8)))
+                parts.append("".join(random.choices(charset, k=length)))
+        return "".join(parts)
+
+    # ── Baukasten konfigurieren ────────────────────────────────────────
+    def configure_builder(self):
+        clear()
+        print_banner()
+        rainbow_print("═══ TEXT-BAUKASTEN – KONFIGURATION ═══", delay=0.001)
+        print("")
+        instant_print("  Baue deinen Text Block für Block zusammen.", SNAP_C)
+        instant_print("  Jeder Block ist entweder ein ZUFALLSBLOCK oder ein FESTER TEXT.", SNAP_W)
+        print("")
+
+        self.blocks = []
+        while True:
+            bnr = len(self.blocks) + 1
+            print("")
+            cyber_print(f"─── BLOCK #{bnr} ─────────────────────────────────────────", delay=0.001)
+            print(f"  {SNAP_G}[1]{Style.RESET_ALL} {SNAP_Y}Zufallsblock{Style.RESET_ALL}  – zufällige Zeichen, Länge + Zeichensatz wählbar")
+            print(f"  {SNAP_G}[2]{Style.RESET_ALL} {SNAP_C}Fester Text {Style.RESET_ALL}  – genau dieser Text, immer gleich")
+            print(f"  {SNAP_R}[3]{Style.RESET_ALL} Fertig – Baukasten abschließen")
+            print("")
+            cmd = input(f"{SNAP_Y}  Block-Typ > {Style.RESET_ALL}").strip()
+
+            if cmd == "1":
+                # Zufallsblock
+                print("")
+                instant_print("  Zeichensätze: letters | digits | mixed | hex | lower | upper", SNAP_W)
+                charset = input(f"{SNAP_Y}  Zeichensatz [{SNAP_C}mixed{SNAP_Y}]: {Style.RESET_ALL}").strip() or "mixed"
+                if charset not in self.CHARSETS:
+                    instant_print(f"  ⚠ Unbekannt – 'mixed' wird verwendet.", SNAP_R)
+                    charset = "mixed"
+                try:
+                    length = int(input(f"{SNAP_Y}  Länge (Zeichen) [{SNAP_C}8{SNAP_Y}]: {Style.RESET_ALL}").strip() or "8")
+                except ValueError:
+                    length = 8
+                self.blocks.append({"type": "random", "charset": charset, "length": length})
+                preview = "".join(random.choices(self.CHARSETS[charset], k=length))
+                instant_print(f"  ✓ Zufallsblock #{bnr}: {length}× {charset}  –  Beispiel: '{preview}'", SNAP_G)
+
+            elif cmd == "2":
+                # Fester Text
+                print("")
+                value = input(f"{SNAP_Y}  Text eingeben: {Style.RESET_ALL}")
+                self.blocks.append({"type": "fest", "value": value})
+                instant_print(f"  ✓ Fester Block #{bnr}: '{value}'", SNAP_G)
+
+            elif cmd == "3":
+                if not self.blocks:
+                    instant_print("  ⚠ Mindestens ein Block erforderlich!", SNAP_R)
+                    continue
+                break
+            else:
+                instant_print("  ⚠ Ungültige Eingabe.", SNAP_R)
+                continue
+
+        # Anzahl + Delay
+        print("")
+        cyber_print("─── SENDUNGS-EINSTELLUNGEN ──────────────────────────", delay=0.001)
+        try:
+            count = int(input(f"{SNAP_Y}  Anzahl Sendungen [{SNAP_C}{self.settings.get('rts_count', 10)}{SNAP_Y}]: {Style.RESET_ALL}").strip() or str(self.settings.get("rts_count", 10)))
+        except ValueError:
+            count = 10
+        try:
+            delay = float(input(f"{SNAP_Y}  Pause zwischen Sendungen (s) [{SNAP_C}{self.settings.get('rts_delay', 0.3)}{SNAP_Y}]: {Style.RESET_ALL}").strip() or str(self.settings.get("rts_delay", 0.3)))
+        except ValueError:
+            delay = 0.3
+
+        self.settings["rts_blocks"] = self.blocks
+        self.settings["rts_count"]  = count
+        self.settings["rts_delay"]  = delay
+        save_settings(self.settings)
+
+        # Vorschau
+        print("")
+        fire_print(f"  🔒 Baukasten gespeichert! {len(self.blocks)} Blöcke, {count} Sendungen", delay=0.002)
+        print("")
+        instant_print("  Vorschau (3 Beispiele):", SNAP_C)
+        for _ in range(3):
+            instant_print(f"    → '{self._generate()}'", SNAP_M)
+
+    # ── Baukasten anzeigen ─────────────────────────────────────────────
+    def show_plan(self):
+        if not self.blocks:
+            instant_print("  ⚠ Kein Baukasten konfiguriert. Erst Option [12] nutzen!", SNAP_R)
+            return False
+        print("")
+        cyber_print("─── BAUKASTEN-PLAN ──────────────────────────────────", delay=0.001)
+        for i, b in enumerate(self.blocks, 1):
+            if b.get("type") == "fest":
+                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_G}FEST   {Style.RESET_ALL}  → '{b.get('value','')}'")
+            else:
+                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_M}RANDOM {Style.RESET_ALL}  → {b.get('length',8)}× {b.get('charset','mixed')}  (Beispiel: '{self._generate_block(b)}')")
+        cyber_print("────────────────────────────────────────────────────", delay=0.001)
+        print(f"  {SNAP_Y}Ergebnis-Beispiel: '{self._generate()}'{Style.RESET_ALL}")
+        print(f"  {SNAP_Y}Ergebnis-Beispiel: '{self._generate()}'{Style.RESET_ALL}")
+        print("")
+        return True
+
+    def _generate_block(self, b):
+        charset = self.CHARSETS.get(b.get("charset", "mixed"), self.CHARSETS["mixed"])
+        return "".join(random.choices(charset, k=max(1, int(b.get("length", 8)))))
 
     # ── Positionen erfassen ────────────────────────────────────────────
     def configure_positions(self):
@@ -676,51 +784,12 @@ class RandomTextSpammer:
         time.sleep(0.3)
 
         self.settings["rts_positions"] = {
-            "input_field":  pos_input,
-            "send_button":  pos_send,
+            "input_field": pos_input,
+            "send_button": pos_send,
         }
         save_settings(self.settings)
         print("")
         fire_print("🔒 Positionen gespeichert!", delay=0.002)
-
-    # ── Einstellungen bearbeiten ───────────────────────────────────────
-    def configure_settings(self):
-        clear()
-        print_banner()
-        rainbow_print("═══ RANDOM-TEXT SPAMMER – EINSTELLUNGEN ═══", delay=0.001)
-        print(SNAP_W + "  (ENTER = Wert behalten)" + Style.RESET_ALL)
-        print("")
-
-        fields = [
-            ("rts_prefix",  "Prefix  (Text VOR Zufallsblock, z.B. 'Hallo ')",  str),
-            ("rts_suffix",  "Suffix  (Text NACH Zufallsblock, z.B. ' @mrgbbn.de')", str),
-            ("rts_length",  "Länge des Zufallsblocks (Zeichen)",               int),
-            ("rts_charset", "Zeichensatz  [letters / digits / mixed / hex]",   str),
-            ("rts_count",   "Anzahl Sendungen",                                int),
-            ("rts_delay",   "Pause zwischen Sendungen (Sekunden)",             float),
-        ]
-        for key, label, cast in fields:
-            cur = self.settings.get(key, "")
-            raw = input(f"  {SNAP_Y}{label}{Style.RESET_ALL} [{SNAP_C}{cur}{Style.RESET_ALL}]: ").strip()
-            if raw:
-                try:
-                    self.settings[key] = cast(raw)
-                except ValueError:
-                    instant_print(f"  ⚠ Ungültige Eingabe – '{key}' bleibt unverändert.", SNAP_R)
-
-        # Charset validieren
-        if self.settings.get("rts_charset") not in self.CHARSETS:
-            self.settings["rts_charset"] = "mixed"
-            instant_print("  ⚠ Unbekannter Zeichensatz – auf 'mixed' zurückgesetzt.", SNAP_R)
-
-        save_settings(self.settings)
-        print("")
-        instant_print("  ✓ Einstellungen gespeichert!", SNAP_G)
-        print("")
-        # Vorschau zeigen
-        instant_print(f"  Beispieltext: {self._generate()}", SNAP_M)
-        instant_print(f"  Beispieltext: {self._generate()}", SNAP_M)
-        instant_print(f"  Beispieltext: {self._generate()}", SNAP_M)
 
     # ── Ausführen ──────────────────────────────────────────────────────
     def run(self):
@@ -731,6 +800,8 @@ class RandomTextSpammer:
         if "input_field" not in pos or "send_button" not in pos:
             instant_print("⚠ Positionen fehlen! Erst Option [13] – Positionen erfassen.", SNAP_R)
             return
+        if not self.show_plan():
+            return
 
         count       = int(self.settings.get("rts_count", 10))
         delay       = float(self.settings.get("rts_delay", 0.3))
@@ -738,12 +809,7 @@ class RandomTextSpammer:
         inp         = pos["input_field"]
         send        = pos["send_button"]
 
-        print("")
-        fire_print(f"  Prefix : '{self.settings.get('rts_prefix','')}'   "
-                   f"Suffix : '{self.settings.get('rts_suffix','')}'   "
-                   f"Länge: {self.settings.get('rts_length',12)}   "
-                   f"Zeichensatz: {self.settings.get('rts_charset','mixed')}", delay=0.001)
-        fire_print(f"  {count} Sendungen  |  F6 = Abbruch", delay=0.001)
+        fire_print(f"  {count} Sendungen  |  F6 = Abbruch jederzeit", delay=0.001)
         print("")
         confirm = input(f"{SNAP_G}  Jetzt starten? (j/n) > {Style.RESET_ALL}").strip().lower()
         if confirm != "j":
@@ -757,16 +823,13 @@ class RandomTextSpammer:
                 instant_print("  ⏹ Durch F6 gestoppt.", SNAP_Y)
                 break
             text = self._generate()
-            # Klick auf Eingabefeld
             pyautogui.click(inp[0], inp[1])
             time.sleep(click_delay)
-            # Text tippen
             pyautogui.write(text, interval=0.02)
             time.sleep(click_delay)
-            # Klick auf Senden
             pyautogui.click(send[0], send[1])
             sent += 1
-            sys.stdout.write(f"\r{SNAP_M}  [{i:04d}/{count}] gesendet: '{text[:60]}'{Style.RESET_ALL}   ")
+            sys.stdout.write(f"\r{SNAP_M}  [{i:04d}/{count}] → '{text[:70]}'{Style.RESET_ALL}   ")
             sys.stdout.flush()
             time.sleep(delay)
 
@@ -942,7 +1005,7 @@ def main():
         print(f"  {SNAP_R}[9]{Style.RESET_ALL} {SNAP_W}🚪 Exit{Style.RESET_ALL}")
         print(f"  {SNAP_B}[10]{Style.RESET_ALL} {SNAP_C}🤖 Klick+Tippen-Assistent – Konfigurieren{Style.RESET_ALL}")
         print(f"  {SNAP_B}[11]{Style.RESET_ALL} {SNAP_C}▶  Klick+Tippen-Assistent – Starten{Style.RESET_ALL}")
-        print(f"  {SNAP_M}[12]{Style.RESET_ALL} {SNAP_Y}🎲 Random-Text Spammer – Einstellungen{Style.RESET_ALL}")
+        print(f"  {SNAP_M}[12]{Style.RESET_ALL} {SNAP_Y}🧩 Text-Baukasten – Konfigurieren{Style.RESET_ALL}")
         print(f"  {SNAP_M}[13]{Style.RESET_ALL} {SNAP_Y}📍 Random-Text Spammer – Positionen{Style.RESET_ALL}")
         print(f"  {SNAP_M}[14]{Style.RESET_ALL} {SNAP_Y}🚀 Random-Text Spammer – Starten{Style.RESET_ALL}")
         print(f"  {SNAP_Y}[15]{Style.RESET_ALL} {SNAP_Y}🔑 Premium-Key eingeben / prüfen{Style.RESET_ALL}")
@@ -1047,7 +1110,7 @@ def main():
             clear()
             print_banner()
             rts = RandomTextSpammer(settings)
-            rts.configure_settings()
+            rts.configure_builder()
             input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
 
         elif c == '13':
