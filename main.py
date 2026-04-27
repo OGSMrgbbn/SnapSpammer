@@ -30,6 +30,7 @@ DEFAULT_SETTINGS = {
     "spam_count": 50,
     "spam_delay": 0.2,
     "turbo_mode": False,     # Normal mode by default
+    "ia_actions": [],         # Interaktionsassistent action sequence
 }
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -446,6 +447,142 @@ class MessageSpammer:
         fire_print(f"✅ SPAM COMPLETE! {self.sent_messages} messages sent!", delay=0.002)
 
 # ----------------------------------------------------------------------
+# Interaktionsassistent – v2 Feature
+# Klick-/Tipp-Sequenzen, Nutzer behält volle Kontrolle
+# ----------------------------------------------------------------------
+class InteraktionsAssistent:
+    """Konfigurierbare Aktionssequenz: Klicken + Tippen.
+    Alle Aktionen werden vor Ausführung angezeigt.
+    Nutzer bestätigt aktiv – F6 stoppt sofort."""
+
+    ACTION_CLICK = "click"
+    ACTION_TYPE  = "type"
+    ACTION_PAUSE = "pause"
+
+    def __init__(self, settings):
+        self.settings = settings
+        self.actions  = list(settings.get("ia_actions", []))
+
+    # ── Konfiguration ─────────────────────────────────────────────
+    def configure(self):
+        if pyautogui is None or keyboard is None:
+            instant_print("⚠ pyautogui/keyboard nicht installiert!", SNAP_R)
+            return
+        clear()
+        print_banner()
+        rainbow_print("═══ INTERAKTIONSASSISTENT – KONFIGURATION ═══", delay=0.001)
+        print("")
+        instant_print("  [1] Klick erfassen   [2] Text tippen   [3] Pause   [4] Fertig", SNAP_C)
+        print("")
+        self.actions = []
+        while True:
+            instant_print(f"  Aktionen bisher: {len(self.actions)}", SNAP_Y)
+            cmd = input(f"{SNAP_Y}  Aktion > {Style.RESET_ALL}").strip()
+            if cmd == "1":
+                label = input(f"{SNAP_C}  Name für diesen Klick (z.B. 'Senden'): {Style.RESET_ALL}").strip() or f"Klick {len(self.actions)+1}"
+                instant_print("  Bewege Maus zur Zielposition und drücke Y ...", SNAP_W)
+                while not keyboard.is_pressed("y"):
+                    time.sleep(0.02)
+                pos = list(pyautogui.position())
+                self.actions.append({"type": self.ACTION_CLICK, "pos": pos, "label": label})
+                instant_print(f"  ✓ '{label}' @ ({pos[0]}, {pos[1]}) gespeichert", SNAP_G)
+                time.sleep(0.3)
+            elif cmd == "2":
+                label = input(f"{SNAP_C}  Name für diese Eingabe (z.B. 'Nachricht'): {Style.RESET_ALL}").strip() or f"Text {len(self.actions)+1}"
+                text  = input(f"{SNAP_Y}  Text eingeben: {Style.RESET_ALL}")
+                self.actions.append({"type": self.ACTION_TYPE, "text": text, "label": label})
+                instant_print(f"  ✓ '{label}' → \"{text[:40]}\" gespeichert", SNAP_G)
+            elif cmd == "3":
+                try:
+                    secs = float(input(f"{SNAP_C}  Pause in Sekunden: {Style.RESET_ALL}").strip())
+                except ValueError:
+                    secs = 0.5
+                self.actions.append({"type": self.ACTION_PAUSE, "duration": secs, "label": f"Pause {secs}s"})
+                instant_print(f"  ✓ Pause {secs}s gespeichert", SNAP_G)
+            elif cmd == "4":
+                break
+            else:
+                instant_print("  ⚠ Ungültige Eingabe.", SNAP_R)
+        self.settings["ia_actions"] = self.actions
+        save_settings(self.settings)
+        print("")
+        fire_print(f"🔒 {len(self.actions)} Aktionen gespeichert!", delay=0.002)
+
+    # ── Vorschau ──────────────────────────────────────────────────
+    def preview(self):
+        print("")
+        if not self.actions:
+            instant_print("  ⚠ Keine Aktionen konfiguriert. Erst Option [10] nutzen!", SNAP_R)
+            return False
+        cyber_print("─── AKTIONSPLAN ─────────────────────────────────────", delay=0.001)
+        for i, a in enumerate(self.actions, 1):
+            t = a.get("type")
+            if t == self.ACTION_CLICK:
+                pos = a.get("pos", [0, 0])
+                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_G}KLICK {Style.RESET_ALL}  {SNAP_W}{a.get('label','')}{Style.RESET_ALL}  @ ({pos[0]}, {pos[1]})")
+            elif t == self.ACTION_TYPE:
+                preview_t = str(a.get("text", ""))[:40]
+                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_M}TIPPEN{Style.RESET_ALL}  {SNAP_W}{a.get('label','')}{Style.RESET_ALL}  → \"{preview_t}\"")
+            elif t == self.ACTION_PAUSE:
+                print(f"  {SNAP_C}[{i:02d}]{Style.RESET_ALL} {SNAP_Y}PAUSE {Style.RESET_ALL}  {a.get('duration', 0.5)}s")
+        cyber_print("──────────────────────────────────────────────────────", delay=0.001)
+        return True
+
+    # ── Ausführen ─────────────────────────────────────────────────
+    def run(self, repeat: int = 1):
+        """Zeigt Plan → Bestätigung → Ausführen. F6 stoppt sofort."""
+        if pyautogui is None:
+            instant_print("⚠ pyautogui nicht installiert!", SNAP_R)
+            return
+        if not self.preview():
+            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+            return
+        print("")
+        print(f"  {SNAP_Y}Wiederholungen: {repeat}x{Style.RESET_ALL}   {SNAP_R}F6 = Abbruch jederzeit{Style.RESET_ALL}")
+        print("")
+        confirm = input(f"{SNAP_G}  Jetzt starten? (j/n) > {Style.RESET_ALL}").strip().lower()
+        if confirm != "j":
+            instant_print("  Abgebrochen.", SNAP_Y)
+            return
+        click_delay = float(self.settings.get("click_delay", 0.25))
+        aborted = False
+        for run_nr in range(1, repeat + 1):
+            if aborted:
+                break
+            print("")
+            fire_print(f"  ▶ Durchlauf {run_nr}/{repeat}", delay=0.001)
+            for a in self.actions:
+                if keyboard and keyboard.is_pressed("f6"):
+                    print("")
+                    instant_print("  ⏹ Durch F6 gestoppt.", SNAP_Y)
+                    aborted = True
+                    break
+                t = a.get("type")
+                if t == self.ACTION_CLICK:
+                    pos = a.get("pos", [0, 0])
+                    sys.stdout.write(f"\r{SNAP_C}  → KLICK   {a.get('label','')}  @ ({pos[0]},{pos[1]}){Style.RESET_ALL}   ")
+                    sys.stdout.flush()
+                    pyautogui.moveTo(pos[0], pos[1])
+                    time.sleep(click_delay)
+                    pyautogui.click()
+                elif t == self.ACTION_TYPE:
+                    text = a.get("text", "")
+                    sys.stdout.write(f"\r{SNAP_M}  → TIPPEN  {a.get('label','')}  \"{text[:30]}\"{Style.RESET_ALL}   ")
+                    sys.stdout.flush()
+                    pyautogui.write(text, interval=0.03)
+                elif t == self.ACTION_PAUSE:
+                    dur = float(a.get("duration", 0.5))
+                    sys.stdout.write(f"\r{SNAP_Y}  → PAUSE   {dur}s{Style.RESET_ALL}   ")
+                    sys.stdout.flush()
+                    time.sleep(dur)
+                time.sleep(0.05)
+        print("")
+        print("")
+        if not aborted:
+            fire_print(f"  ✅ {repeat} Durchlauf/Durchläufe abgeschlossen!", delay=0.002)
+        instant_print("  Kontrolle zurück an den Nutzer.", SNAP_G)
+
+# ----------------------------------------------------------------------
 # Menu Functions - ENHANCED
 # ----------------------------------------------------------------------
 def open_help_pages(settings):
@@ -609,6 +746,8 @@ def main():
         print(f"  {SNAP_C}[7]{Style.RESET_ALL} {SNAP_W}⏱️  Estimate Time{Style.RESET_ALL}")
         print(f"  {SNAP_C}[8]{Style.RESET_ALL} {SNAP_W}❓ Help{Style.RESET_ALL}")
         print(f"  {SNAP_R}[9]{Style.RESET_ALL} {SNAP_W}🚪 Exit{Style.RESET_ALL}")
+        print(f"  {SNAP_B}[10]{Style.RESET_ALL} {SNAP_C}🤖 Interaktionsassistent – Konfigurieren{Style.RESET_ALL}")
+        print(f"  {SNAP_B}[11]{Style.RESET_ALL} {SNAP_C}▶  Interaktionsassistent – Starten{Style.RESET_ALL}")
         print("")
         c = input(f"{SNAP_Y}Select > {Style.RESET_ALL}").strip()
 
@@ -671,6 +810,31 @@ def main():
             save_settings(settings)
             exit_screen()
             break
+
+        elif c == '10':
+            clear()
+            print_banner()
+            ia = InteraktionsAssistent(settings)
+            ia.configure()
+            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+
+        elif c == '11':
+            clear()
+            print_banner()
+            rainbow_print("═══ INTERAKTIONSASSISTENT – STARTEN ═══", delay=0.001)
+            ia = InteraktionsAssistent(settings)
+            if not ia.actions:
+                instant_print("⚠ Keine Aktionen konfiguriert. Erst Option [10] nutzen!", SNAP_R)
+                input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+            else:
+                try:
+                    repeat = int(input(f"{SNAP_Y}  Wie oft wiederholen? (Standard: 1) > {Style.RESET_ALL}").strip() or "1")
+                except ValueError:
+                    repeat = 1
+                ia.run(repeat)
+                save_settings(settings)
+                input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+
         else:
             continue
 
