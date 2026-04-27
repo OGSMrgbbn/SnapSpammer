@@ -1,4 +1,2 @@
-# SnapSpammer Premium Keys (SHA256-Hashes, einer pro Zeile)
-# Füge hier SHA256-Hashes gültiger Keys ein, z.B.:
-# python -c "import hashlib; print(hashlib.sha256('DEINKEY'.encode()).hexdigest())"
-d5285a620b807c5e0a7cd7e1bfb07967842ee5b9fd2115c7533cb215d863a1f4
+# SnapSpammer Premium Keys (einen Key pro Zeile, Kommentare mit # werden ignoriert)
+54ae2062ede9c2421705fbc069b6ba4b519b2a5ffa7d350205a4a0287cf1d9f1

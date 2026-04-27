@@ -79,7 +79,7 @@ def _hash_key(raw: str) -> str:
     return hashlib.sha256(raw.strip().encode()).hexdigest()
 
 def is_premium(settings) -> bool:
-    """True wenn der gespeicherte Key in der Remote-Hashliste steht."""
+    """True wenn der gespeicherte Key direkt in der Remote-Liste steht."""
     global _premium_cache
     if _premium_cache is not None:
         return _premium_cache
@@ -89,8 +89,11 @@ def is_premium(settings) -> bool:
         return False
     try:
         with urllib.request.urlopen(PREMIUM_KEYS_URL, timeout=5) as resp:
-            valid_hashes = {line.strip() for line in resp.read().decode().splitlines() if line.strip()}
-        _premium_cache = _hash_key(raw_key) in valid_hashes
+            valid_keys = {
+                line.strip() for line in resp.read().decode().splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            }
+        _premium_cache = raw_key in valid_keys
     except Exception:
         # Offline – akzeptiere gespeicherten Key ohne Netzwerk
         _premium_cache = bool(raw_key)
