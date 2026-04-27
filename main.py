@@ -31,6 +31,14 @@ DEFAULT_SETTINGS = {
     "spam_delay": 0.2,
     "turbo_mode": False,     # Normal mode by default
     "ia_actions": [],         # Interaktionsassistent action sequence
+    # --- RandomTextSpammer (Premium) ---
+    "rts_prefix":      "",      # Text vor dem Zufallsblock, z.B. 'hallo '
+    "rts_suffix":      "",      # Text nach dem Zufallsblock, z.B. ' @mrgbbn.de'
+    "rts_length":      12,      # Länge des Zufallsblocks
+    "rts_charset":     "mixed", # 'letters' | 'digits' | 'mixed' | 'hex'
+    "rts_count":       10,      # Wie oft absenden
+    "rts_delay":       0.3,     # Pause zwischen Sendungen
+    "rts_positions":   {},      # input_field + send_button
 }
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -583,6 +591,158 @@ class InteraktionsAssistent:
         instant_print("  Kontrolle zurück an den Nutzer.", SNAP_G)
 
 # ----------------------------------------------------------------------
+# RandomTextSpammer – Premium Feature
+# Zufallstext (Länge + Zeichensatz wählbar) + fester Prefix/Suffix
+# Klickt Input-Feld, tippt Text, klickt Senden – wiederholbar
+# ----------------------------------------------------------------------
+import random, string as _string
+
+class RandomTextSpammer:
+    """Premium: Generiert einzigartigen Zufallstext je Sendung.
+    Nutzer stellt Prefix, Suffix, Länge, Zeichensatz und Positionen ein."""
+
+    CHARSETS = {
+        "letters": _string.ascii_letters,
+        "digits":  _string.digits,
+        "mixed":   _string.ascii_letters + _string.digits,
+        "hex":     "0123456789abcdef",
+    }
+
+    def __init__(self, settings):
+        self.settings = settings
+
+    # ── Zufallstext generieren ─────────────────────────────────────────
+    def _generate(self):
+        charset = self.CHARSETS.get(
+            self.settings.get("rts_charset", "mixed"),
+            self.CHARSETS["mixed"]
+        )
+        length  = max(1, int(self.settings.get("rts_length", 12)))
+        rand    = "".join(random.choices(charset, k=length))
+        return self.settings.get("rts_prefix", "") + rand + self.settings.get("rts_suffix", "")
+
+    # ── Positionen erfassen ────────────────────────────────────────────
+    def configure_positions(self):
+        if pyautogui is None or keyboard is None:
+            instant_print("⚠ pyautogui/keyboard nicht installiert!", SNAP_R)
+            return
+        rainbow_print("═══ RANDOM-TEXT – POSITIONEN ERFASSEN ═══", delay=0.001)
+        print("")
+        cyber_print("Bewege Maus zum TEXT-EINGABEFELD, drücke Y ...", delay=0.001)
+        while not keyboard.is_pressed("y"):
+            time.sleep(0.02)
+        pos_input = list(pyautogui.position())
+        instant_print(f"  ✓ Eingabefeld @ ({pos_input[0]}, {pos_input[1]})", SNAP_G)
+        time.sleep(0.3)
+
+        cyber_print("Bewege Maus zum SENDEN-BUTTON, drücke Y ...", delay=0.001)
+        while not keyboard.is_pressed("y"):
+            time.sleep(0.02)
+        pos_send = list(pyautogui.position())
+        instant_print(f"  ✓ Senden-Button @ ({pos_send[0]}, {pos_send[1]})", SNAP_G)
+        time.sleep(0.3)
+
+        self.settings["rts_positions"] = {
+            "input_field":  pos_input,
+            "send_button":  pos_send,
+        }
+        save_settings(self.settings)
+        print("")
+        fire_print("🔒 Positionen gespeichert!", delay=0.002)
+
+    # ── Einstellungen bearbeiten ───────────────────────────────────────
+    def configure_settings(self):
+        clear()
+        print_banner()
+        rainbow_print("═══ RANDOM-TEXT SPAMMER – EINSTELLUNGEN ═══", delay=0.001)
+        print(SNAP_W + "  (ENTER = Wert behalten)" + Style.RESET_ALL)
+        print("")
+
+        fields = [
+            ("rts_prefix",  "Prefix  (Text VOR Zufallsblock, z.B. 'Hallo ')",  str),
+            ("rts_suffix",  "Suffix  (Text NACH Zufallsblock, z.B. ' @mrgbbn.de')", str),
+            ("rts_length",  "Länge des Zufallsblocks (Zeichen)",               int),
+            ("rts_charset", "Zeichensatz  [letters / digits / mixed / hex]",   str),
+            ("rts_count",   "Anzahl Sendungen",                                int),
+            ("rts_delay",   "Pause zwischen Sendungen (Sekunden)",             float),
+        ]
+        for key, label, cast in fields:
+            cur = self.settings.get(key, "")
+            raw = input(f"  {SNAP_Y}{label}{Style.RESET_ALL} [{SNAP_C}{cur}{Style.RESET_ALL}]: ").strip()
+            if raw:
+                try:
+                    self.settings[key] = cast(raw)
+                except ValueError:
+                    instant_print(f"  ⚠ Ungültige Eingabe – '{key}' bleibt unverändert.", SNAP_R)
+
+        # Charset validieren
+        if self.settings.get("rts_charset") not in self.CHARSETS:
+            self.settings["rts_charset"] = "mixed"
+            instant_print("  ⚠ Unbekannter Zeichensatz – auf 'mixed' zurückgesetzt.", SNAP_R)
+
+        save_settings(self.settings)
+        print("")
+        instant_print("  ✓ Einstellungen gespeichert!", SNAP_G)
+        print("")
+        # Vorschau zeigen
+        instant_print(f"  Beispieltext: {self._generate()}", SNAP_M)
+        instant_print(f"  Beispieltext: {self._generate()}", SNAP_M)
+        instant_print(f"  Beispieltext: {self._generate()}", SNAP_M)
+
+    # ── Ausführen ──────────────────────────────────────────────────────
+    def run(self):
+        if pyautogui is None:
+            instant_print("⚠ pyautogui nicht installiert!", SNAP_R)
+            return
+        pos = self.settings.get("rts_positions", {})
+        if "input_field" not in pos or "send_button" not in pos:
+            instant_print("⚠ Positionen fehlen! Erst Option [13] – Positionen erfassen.", SNAP_R)
+            return
+
+        count       = int(self.settings.get("rts_count", 10))
+        delay       = float(self.settings.get("rts_delay", 0.3))
+        click_delay = float(self.settings.get("click_delay", 0.25))
+        inp         = pos["input_field"]
+        send        = pos["send_button"]
+
+        print("")
+        fire_print(f"  Prefix : '{self.settings.get('rts_prefix','')}'   "
+                   f"Suffix : '{self.settings.get('rts_suffix','')}'   "
+                   f"Länge: {self.settings.get('rts_length',12)}   "
+                   f"Zeichensatz: {self.settings.get('rts_charset','mixed')}", delay=0.001)
+        fire_print(f"  {count} Sendungen  |  F6 = Abbruch", delay=0.001)
+        print("")
+        confirm = input(f"{SNAP_G}  Jetzt starten? (j/n) > {Style.RESET_ALL}").strip().lower()
+        if confirm != "j":
+            instant_print("  Abgebrochen.", SNAP_Y)
+            return
+
+        sent = 0
+        for i in range(1, count + 1):
+            if keyboard and keyboard.is_pressed("f6"):
+                print("")
+                instant_print("  ⏹ Durch F6 gestoppt.", SNAP_Y)
+                break
+            text = self._generate()
+            # Klick auf Eingabefeld
+            pyautogui.click(inp[0], inp[1])
+            time.sleep(click_delay)
+            # Text tippen
+            pyautogui.write(text, interval=0.02)
+            time.sleep(click_delay)
+            # Klick auf Senden
+            pyautogui.click(send[0], send[1])
+            sent += 1
+            sys.stdout.write(f"\r{SNAP_M}  [{i:04d}/{count}] gesendet: '{text[:60]}'{Style.RESET_ALL}   ")
+            sys.stdout.flush()
+            time.sleep(delay)
+
+        print("")
+        print("")
+        fire_print(f"  ✅ {sent} Nachrichten gesendet!", delay=0.002)
+        instant_print("  Kontrolle zurück an den Nutzer.", SNAP_G)
+
+# ----------------------------------------------------------------------
 # Menu Functions - ENHANCED
 # ----------------------------------------------------------------------
 def open_help_pages(settings):
@@ -748,6 +908,9 @@ def main():
         print(f"  {SNAP_R}[9]{Style.RESET_ALL} {SNAP_W}🚪 Exit{Style.RESET_ALL}")
         print(f"  {SNAP_B}[10]{Style.RESET_ALL} {SNAP_C}🤖 Interaktionsassistent – Konfigurieren{Style.RESET_ALL}")
         print(f"  {SNAP_B}[11]{Style.RESET_ALL} {SNAP_C}▶  Interaktionsassistent – Starten{Style.RESET_ALL}")
+        print(f"  {SNAP_M}[12]{Style.RESET_ALL} {SNAP_Y}🎲 Random-Text Spammer – Einstellungen{Style.RESET_ALL}")
+        print(f"  {SNAP_M}[13]{Style.RESET_ALL} {SNAP_Y}📍 Random-Text Spammer – Positionen{Style.RESET_ALL}")
+        print(f"  {SNAP_M}[14]{Style.RESET_ALL} {SNAP_Y}🚀 Random-Text Spammer – Starten{Style.RESET_ALL}")
         print("")
         c = input(f"{SNAP_Y}Select > {Style.RESET_ALL}").strip()
 
@@ -834,6 +997,29 @@ def main():
                 ia.run(repeat)
                 save_settings(settings)
                 input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+
+        elif c == '12':
+            clear()
+            print_banner()
+            rts = RandomTextSpammer(settings)
+            rts.configure_settings()
+            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+
+        elif c == '13':
+            clear()
+            print_banner()
+            rts = RandomTextSpammer(settings)
+            rts.configure_positions()
+            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+
+        elif c == '14':
+            clear()
+            print_banner()
+            rainbow_print("═══ RANDOM-TEXT SPAMMER ═══", delay=0.001)
+            rts = RandomTextSpammer(settings)
+            rts.run()
+            save_settings(settings)
+            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
 
         else:
             continue
