@@ -54,16 +54,32 @@ CYBER = [Fore.CYAN, Fore.LIGHTCYAN_EX, Fore.WHITE, Fore.LIGHTGREEN_EX]
 # ----------------------------------------------------------------------
 # Version handling
 # ----------------------------------------------------------------------
-VERSION = "1.0.2"  
-VERSION_URL = "https://raw.githubusercontent.com/OhnoMain/SnapchatBoost/main/version.txt"
+VERSION_FILE = BASE_DIR / "version.txt"
+VERSION = VERSION_FILE.read_text(encoding="utf-8").strip() if VERSION_FILE.exists() else "0.0.0"
+VERSION_URL = "https://raw.githubusercontent.com/OGSMrgbbn/SnapSpammer/main/version.txt"
 RELEASES_URL = "https://github.com/OGSMrgbbn/SnapSpammer/releases"
 
+def _parse_version(value):
+    """Parse semantic-ish versions like 1.0.3 into comparable tuples."""
+    parts = []
+    for part in str(value).strip().split('.'):
+        try:
+            parts.append(int(part))
+        except ValueError:
+            # Keep non-numeric suffixes from breaking checks.
+            break
+    return tuple(parts)
+
 def check_version():
-    """Force update if version mismatch. Exit on outdated version."""
+    """Force update only when local version is older than remote."""
     try:
         with urllib.request.urlopen(VERSION_URL, timeout=5) as resp:
             remote = resp.read().decode('utf-8').strip()
-        if remote != VERSION:
+
+        local_v = _parse_version(VERSION)
+        remote_v = _parse_version(remote)
+
+        if remote_v and local_v and local_v < remote_v:
             pretty_print("OUTDATED VERSION!", SNAP_W)
             pretty_print(f"Local : {VERSION}", SNAP_W)
             pretty_print(f"Latest: {remote}", SNAP_W)
