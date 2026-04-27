@@ -896,39 +896,47 @@ def ensure_snap_image():
 def settings_menu(settings):
     clear()
     print_banner()
-    rainbow_print("═══════════════ SETTINGS ═══════════════", delay=0.001)
-    print(SNAP_W + "(Press ENTER to keep current value)" + Style.RESET_ALL)
+    rainbow_print("═══════════════ EINSTELLUNGEN ═══════════════", delay=0.001)
+    print(f"  {SNAP_W}ENTER drücken um aktuellen Wert beizubehalten{Style.RESET_ALL}")
     print("")
     try:
+        # ── ALLGEMEIN ──────────────────────────────────────────────────
+        cyber_print("  ▸ ALLGEMEIN", delay=0.001)
+        print(f"  {SNAP_W}{'─'*48}{Style.RESET_ALL}")
         turbo = settings.get('turbo_mode', True)
-        turbo_status = f"{SNAP_G}ON{Style.RESET_ALL}" if turbo else f"{SNAP_R}OFF{Style.RESET_ALL}"
-        t = input(f"{SNAP_C}⚡ TURBO MODE [{turbo_status}] (y/n): {Style.RESET_ALL}").strip().lower()
-        if t == 'y': settings['turbo_mode'] = True
+        t_txt = f"{SNAP_G}AN{Style.RESET_ALL}" if turbo else f"{SNAP_R}AUS{Style.RESET_ALL}"
+        t = input(f"  {SNAP_C}Turbo-Modus [{t_txt}{SNAP_C}] (j=an / n=aus): {Style.RESET_ALL}").strip().lower()
+        if t == 'j': settings['turbo_mode'] = True
         elif t == 'n': settings['turbo_mode'] = False
-        
         print("")
-        cyber_print("─── Snap Boost Settings ───", delay=0.001)
-        ld = input(f"{SNAP_Y}Loop delay [{settings.get('loop_delay')}]: {Style.RESET_ALL}").strip()
+
+        # ── SNAP BOOST ────────────────────────────────────────────────
+        cyber_print("  ▸ SNAP BOOST", delay=0.001)
+        print(f"  {SNAP_W}{'─'*48}{Style.RESET_ALL}")
+        ld = input(f"  {SNAP_Y}Loop-Delay       [{SNAP_C}{settings.get('loop_delay')}{SNAP_Y}] s : {Style.RESET_ALL}").strip()
         if ld: settings['loop_delay'] = float(ld)
-        cd = input(f"{SNAP_Y}Click delay [{settings.get('click_delay')}]: {Style.RESET_ALL}").strip()
+        cd = input(f"  {SNAP_Y}Click-Delay      [{SNAP_C}{settings.get('click_delay')}{SNAP_Y}] s : {Style.RESET_ALL}").strip()
         if cd: settings['click_delay'] = float(cd)
-        sc = input(f"{SNAP_Y}Shortcut size [{settings.get('shortcut_count')}]: {Style.RESET_ALL}").strip()
+        sc = input(f"  {SNAP_Y}Shortcut-Größe   [{SNAP_C}{settings.get('shortcut_count')}{SNAP_Y}]   : {Style.RESET_ALL}").strip()
         if sc: settings['shortcut_count'] = int(sc)
-        
         print("")
-        fire_print("─── Message Spam Settings ───", delay=0.001)
-        msg = input(f"{SNAP_M}Spam message [{settings.get('spam_message', '')}]: {Style.RESET_ALL}").strip()
+
+        # ── MESSAGE SPAM ──────────────────────────────────────────────
+        cyber_print("  ▸ MESSAGE SPAM", delay=0.001)
+        print(f"  {SNAP_W}{'─'*48}{Style.RESET_ALL}")
+        cur_msg = str(settings.get('spam_message', ''))[:35]
+        msg = input(f"  {SNAP_M}Nachricht        [{SNAP_C}{cur_msg}{SNAP_M}]: {Style.RESET_ALL}").strip()
         if msg: settings['spam_message'] = msg
-        cnt = input(f"{SNAP_M}Messages to send [{settings.get('spam_count', 100)}]: {Style.RESET_ALL}").strip()
+        cnt = input(f"  {SNAP_M}Anzahl           [{SNAP_C}{settings.get('spam_count', 100)}{SNAP_M}]   : {Style.RESET_ALL}").strip()
         if cnt: settings['spam_count'] = int(cnt)
-        spd = input(f"{SNAP_M}Spam delay [{settings.get('spam_delay', 0.05)}]: {Style.RESET_ALL}").strip()
+        spd = input(f"  {SNAP_M}Spam-Delay       [{SNAP_C}{settings.get('spam_delay', 0.05)}{SNAP_M}] s : {Style.RESET_ALL}").strip()
         if spd: settings['spam_delay'] = float(spd)
-    except:
-        instant_print("⚠ Invalid input - keeping previous values.", SNAP_R)
+    except (ValueError, KeyboardInterrupt):
+        instant_print("  ⚠ Ungültige Eingabe – vorherige Werte beibehalten.", SNAP_R)
     save_settings(settings)
     print("")
-    instant_print("✓ Settings saved!", SNAP_G)
-    input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+    instant_print("  ✓ Einstellungen gespeichert!", SNAP_G)
+    input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
 
 def configure_positions(settings):
     clear()
@@ -1026,47 +1034,72 @@ def main():
     while True:
         clear()
         print_banner()
-        
-        # Status display
-        turbo = settings.get('turbo_mode', True)
-        turbo_status = f"{SNAP_G}⚡ TURBO ON{Style.RESET_ALL}" if turbo else f"{SNAP_R}TURBO OFF{Style.RESET_ALL}"
-        prem_status   = f"{SNAP_Y}🔑 PREMIUM{Style.RESET_ALL}" if is_premium(settings) else f"{SNAP_W}FREE{Style.RESET_ALL}"
-        print(f"  {turbo_status}  |  Loop: {settings.get('loop_delay')}s  |  Click: {settings.get('click_delay')}s  |  {prem_status}")
-        print("")
-        
-        # Menu options with colors
-        print(f"  {SNAP_G}[1]{Style.RESET_ALL} {SNAP_Y}⚡ Start Snap Boost{Style.RESET_ALL}")
-        print(f"  {SNAP_G}[2]{Style.RESET_ALL} {SNAP_M}💬 Start Message Spam{Style.RESET_ALL}")
-        print(f"  {SNAP_C}[3]{Style.RESET_ALL} {SNAP_W}⚙️  Settings{Style.RESET_ALL}")
-        print(f"  {SNAP_C}[4]{Style.RESET_ALL} {SNAP_W}📍 Configure Snap Positions{Style.RESET_ALL}")
-        print(f"  {SNAP_C}[5]{Style.RESET_ALL} {SNAP_W}📍 Configure Spam Positions{Style.RESET_ALL}")
-        print(f"  {SNAP_C}[6]{Style.RESET_ALL} {SNAP_W}📥 Import Positions{Style.RESET_ALL}")
-        print(f"  {SNAP_C}[7]{Style.RESET_ALL} {SNAP_W}⏱️  Estimate Time{Style.RESET_ALL}")
-        print(f"  {SNAP_C}[8]{Style.RESET_ALL} {SNAP_W}❓ Help{Style.RESET_ALL}")
-        print(f"  {SNAP_R}[9]{Style.RESET_ALL} {SNAP_W}🚪 Exit{Style.RESET_ALL}")
-        print(f"  {SNAP_B}[10]{Style.RESET_ALL} {SNAP_C}🤖 Klick+Tippen-Assistent – Konfigurieren{Style.RESET_ALL}")
-        print(f"  {SNAP_B}[11]{Style.RESET_ALL} {SNAP_C}▶  Klick+Tippen-Assistent – Starten{Style.RESET_ALL}")
-        print(f"  {SNAP_M}[12]{Style.RESET_ALL} {SNAP_Y}🧩 Text-Baukasten – Konfigurieren{Style.RESET_ALL}")
-        print(f"  {SNAP_M}[13]{Style.RESET_ALL} {SNAP_Y}📍 Random-Text Spammer – Positionen{Style.RESET_ALL}")
-        print(f"  {SNAP_M}[14]{Style.RESET_ALL} {SNAP_Y}🚀 Random-Text Spammer – Starten{Style.RESET_ALL}")
-        print(f"  {SNAP_Y}[15]{Style.RESET_ALL} {SNAP_Y}🔑 Premium-Key eingeben / prüfen{Style.RESET_ALL}")
-        print("")
-        c = input(f"{SNAP_Y}Select > {Style.RESET_ALL}").strip()
 
-        if c == '1':
+        # ── Status-Leiste ──────────────────────────────────────────────
+        turbo = settings.get('turbo_mode', True)
+        t_lbl = f"{SNAP_G}⚡ TURBO AN{Style.RESET_ALL}" if turbo else f"{SNAP_R}✗ TURBO AUS{Style.RESET_ALL}"
+        p_lbl = f"{SNAP_Y}🔑 PREMIUM{Style.RESET_ALL}" if is_premium(settings) else f"{SNAP_W}FREE{Style.RESET_ALL}"
+        print(f"  {t_lbl}  {SNAP_W}│{Style.RESET_ALL}  Loop: {SNAP_C}{settings.get('loop_delay')}s{Style.RESET_ALL}  {SNAP_W}│{Style.RESET_ALL}  Click: {SNAP_C}{settings.get('click_delay')}s{Style.RESET_ALL}  {SNAP_W}│{Style.RESET_ALL}  {p_lbl}")
+        print(f"  {SNAP_W}{'─' * 52}{Style.RESET_ALL}")
+        print("")
+
+        # ── 📸  SNAP BOOST ────────────────────────────────────────────
+        print(f"  {SNAP_Y}▸ SNAP BOOST{Style.RESET_ALL}")
+        print(f"    {SNAP_G}[1]{Style.RESET_ALL} Positionen einrichten        {SNAP_G}[2]{Style.RESET_ALL} {SNAP_Y}⚡ Boost starten{Style.RESET_ALL}")
+        print("")
+
+        # ── 💬  MESSAGE SPAM ──────────────────────────────────────────
+        print(f"  {SNAP_M}▸ MESSAGE SPAM{Style.RESET_ALL}")
+        print(f"    {SNAP_G}[3]{Style.RESET_ALL} Positionen einrichten        {SNAP_G}[4]{Style.RESET_ALL} {SNAP_M}💬 Spam starten{Style.RESET_ALL}")
+        print("")
+
+        # ── 🤖  INTERAKTIONS-ASSISTENT ────────────────────────────────
+        print(f"  {SNAP_C}▸ INTERAKTIONS-ASSISTENT{Style.RESET_ALL}")
+        print(f"    {SNAP_G}[5]{Style.RESET_ALL} Konfigurieren                {SNAP_G}[6]{Style.RESET_ALL} {SNAP_C}▶ Starten{Style.RESET_ALL}")
+        print("")
+
+        # ── 🧩  TEXT-BAUKASTEN ────────────────────────────────────────
+        print(f"  {SNAP_B}▸ TEXT-BAUKASTEN{Style.RESET_ALL}")
+        print(f"    {SNAP_G}[7]{Style.RESET_ALL} Baukasten konfigurieren      {SNAP_G}[8]{Style.RESET_ALL} Positionen einrichten")
+        print(f"    {SNAP_G}[9]{Style.RESET_ALL} {SNAP_B}▶ Starten{Style.RESET_ALL}")
+        print("")
+
+        # ── ⚙   TOOLS & EINSTELLUNGEN ────────────────────────────────
+        print(f"  {SNAP_W}▸ TOOLS & EINSTELLUNGEN{Style.RESET_ALL}")
+        print(f"   {SNAP_G}[10]{Style.RESET_ALL} Einstellungen               {SNAP_G}[11]{Style.RESET_ALL} Positionen importieren")
+        print(f"   {SNAP_G}[12]{Style.RESET_ALL} Zeit schätzen               {SNAP_G}[13]{Style.RESET_ALL} Hilfe / Readme")
+        print("")
+
+        # ── PREMIUM / EXIT ────────────────────────────────────────────
+        print(f"  {SNAP_W}{'─' * 52}{Style.RESET_ALL}")
+        print(f"   {SNAP_Y}[14]{Style.RESET_ALL} {SNAP_Y}🔑 Premium-Key{Style.RESET_ALL}                {SNAP_R}[0]{Style.RESET_ALL} {SNAP_R}Beenden{Style.RESET_ALL}")
+        print(f"  {SNAP_W}{'─' * 52}{Style.RESET_ALL}")
+        print("")
+
+        c = input(f"  {SNAP_Y}› Auswahl: {Style.RESET_ALL}").strip()
+
+        if c == '0':
+            save_settings(settings)
+            exit_screen()
+            break
+
+        elif c == '1':
+            configure_positions(settings)
+
+        elif c == '2':
             clear()
             print_banner()
             bot = SnapBot(settings)
             print("")
-            fire_print("🚀 SNAP BOOST ACTIVATED! 🚀", delay=0.002)
-            cyber_print("Press F6 to stop", delay=0.001)
+            fire_print("  🚀 SNAP BOOST GESTARTET!", delay=0.002)
+            cyber_print("  F6 drücken zum Stoppen", delay=0.001)
             print("")
             started = time.time()
             while True:
                 try:
                     if keyboard and keyboard.is_pressed('f6'):
                         print("")
-                        instant_print("⏹ Stopped!", SNAP_Y)
+                        instant_print("  ⏹ Gestoppt!", SNAP_Y)
                         break
                 except:
                     pass
@@ -1075,59 +1108,39 @@ def main():
                     break
                 time.sleep(settings.get('loop_delay', 0.15))
             print("")
-            fire_print(f"✅ Session complete! {bot.sent_snaps} batches sent!", delay=0.002)
+            fire_print(f"  ✅ Session abgeschlossen! {bot.sent_snaps} Batches gesendet!", delay=0.002)
             save_settings(settings)
-            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+            input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
 
-        elif c == '2':
+        elif c == '3':
+            configure_spam_positions(settings)
+
+        elif c == '4':
             clear()
             print_banner()
             spammer = MessageSpammer(settings)
-            fire_print("💬 MESSAGE SPAM MODE 💬", delay=0.002)
-            cyber_print("Press F6 to stop", delay=0.001)
+            fire_print("  💬 MESSAGE SPAM GESTARTET", delay=0.002)
+            cyber_print("  F6 drücken zum Stoppen", delay=0.001)
             started = time.time()
             spammer.spam_messages(started)
             save_settings(settings)
-            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
-
-        elif c == '3':
-            settings_menu(settings)
-
-        elif c == '4':
-            configure_positions(settings)
+            input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
 
         elif c == '5':
-            configure_spam_positions(settings)
-
-        elif c == '6':
-            import_positions(settings)
-
-        elif c == '7':
-            estimate_menu(settings)
-
-        elif c == '8':
-            help_menu(settings)
-
-        elif c == '9':
-            save_settings(settings)
-            exit_screen()
-            break
-
-        elif c == '10':
             clear()
             print_banner()
             ia = InteraktionsAssistent(settings)
             ia.configure()
-            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+            input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
 
-        elif c == '11':
+        elif c == '6':
             clear()
             print_banner()
-            rainbow_print("═══ KLICK+TIPPEN-ASSISTENT – STARTEN ═══", delay=0.001)
+            rainbow_print("═══ INTERAKTIONS-ASSISTENT – STARTEN ═══", delay=0.001)
             ia = InteraktionsAssistent(settings)
             if not ia.pairs:
-                instant_print("⚠ Keine Paare konfiguriert. Erst Option [10] nutzen!", SNAP_R)
-                input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+                instant_print("  ⚠ Keine Paare konfiguriert. Erst [5] nutzen!", SNAP_R)
+                input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
             else:
                 if is_premium(settings):
                     try:
@@ -1139,36 +1152,48 @@ def main():
                     repeat = 1
                 ia.run(repeat)
                 save_settings(settings)
-                input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+                input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
 
-        elif c == '15':
-            clear()
-            print_banner()
-            set_premium_key(settings)
-            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
-
-        elif c == '12':
+        elif c == '7':
             clear()
             print_banner()
             rts = RandomTextSpammer(settings)
             rts.configure_builder()
-            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+            input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
 
-        elif c == '13':
+        elif c == '8':
             clear()
             print_banner()
             rts = RandomTextSpammer(settings)
             rts.configure_positions()
-            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+            input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
+
+        elif c == '9':
+            clear()
+            print_banner()
+            rainbow_print("═══ TEXT-BAUKASTEN SPAMMER ═══", delay=0.001)
+            rts = RandomTextSpammer(settings)
+            rts.run()
+            save_settings(settings)
+            input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
+
+        elif c == '10':
+            settings_menu(settings)
+
+        elif c == '11':
+            import_positions(settings)
+
+        elif c == '12':
+            estimate_menu(settings)
+
+        elif c == '13':
+            help_menu(settings)
 
         elif c == '14':
             clear()
             print_banner()
-            rainbow_print("═══ RANDOM-TEXT SPAMMER ═══", delay=0.001)
-            rts = RandomTextSpammer(settings)
-            rts.run()
-            save_settings(settings)
-            input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+            set_premium_key(settings)
+            input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
 
         else:
             continue
