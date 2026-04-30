@@ -176,29 +176,78 @@ def _parse_version(value):
     return tuple(parts)
 
 def check_version():
-    """Force update only when local version is older than remote."""
+    """Auto-update: fetch latest GitHub release, offer one-click download & restart."""
+    import json as _json
     try:
-        with urllib.request.urlopen(VERSION_URL, timeout=5) as resp:
-            remote = resp.read().decode('utf-8').strip()
+        with urllib.request.urlopen(
+            "https://api.github.com/repos/OGSMrgbbn/SnapSpammer/releases/latest",
+            timeout=6
+        ) as resp:
+            release = _json.loads(resp.read().decode())
 
-        local_v = _parse_version(VERSION)
-        remote_v = _parse_version(remote)
+        remote_tag = release.get("tag_name", "").lstrip("v")
+        local_v    = _parse_version(VERSION)
+        remote_v   = _parse_version(remote_tag)
 
-        if remote_v and local_v and local_v < remote_v:
-            pretty_print("OUTDATED VERSION!", SNAP_W)
-            pretty_print(f"Local : {VERSION}", SNAP_W)
-            pretty_print(f"Latest: {remote}", SNAP_W)
-            pretty_print("You MUST download the new version to continue.", SNAP_W)
-            pretty_print("Opening the download page...", SNAP_ACC)
-            webbrowser.open(RELEASES_URL)
-            input("Press ENTER to exit...")
-            sys.exit(0)
-        else:
-            pretty_print(f"Version up-to-date: {VERSION}", SNAP_ACC)
+        if not remote_v or not local_v or local_v >= remote_v:
+            instant_print(f"  \u2713 Version up-to-date: {VERSION}", SNAP_G)
             return True
+
+        # ── Update available ────────────────────────────────────────────────
+        print("")
+        _box_top("UPDATE AVAILABLE", SNAP_Y)
+        _box_row(f"  Installed  {SNAP_R}{VERSION}{Style.RESET_ALL}", accent=SNAP_Y)
+        _box_row(f"  Available  {SNAP_G}v{remote_tag}{Style.RESET_ALL}", accent=SNAP_Y)
+        _box_row("", accent=SNAP_Y)
+        _box_row(f"  {SNAP_DIM}{SNAP_W}Auto-Update: main.py wird ersetzt und neu gestartet.{Style.RESET_ALL}", accent=SNAP_Y)
+        _box_bot(SNAP_Y)
+        print("")
+        choice = input(f"  {SNAP_Y}\u203a{Style.RESET_ALL} Jetzt updaten? (j/n): ").strip().lower()
+        if choice != "j":
+            instant_print("  Update \u00fcbersprungen.", SNAP_W)
+            return True
+
+        # ── Download new main.py ─────────────────────────────────────────────
+        raw_url = (
+            f"https://raw.githubusercontent.com/OGSMrgbbn/SnapSpammer"
+            f"/v{remote_tag}/main.py"
+        )
+        print("")
+        sys.stdout.write(f"  {SNAP_C}Downloading v{remote_tag}\u2026{Style.RESET_ALL}")
+        sys.stdout.flush()
+        with urllib.request.urlopen(raw_url, timeout=20) as resp:
+            new_content = resp.read()
+        print(f"  {SNAP_G}\u2713{Style.RESET_ALL}")
+
+        # ── Write files ─────────────────────────────────────────────────────
+        tmp    = BASE_DIR / "main.py.tmp"
+        script = BASE_DIR / "main.py"
+        tmp.write_bytes(new_content)
+        VERSION_FILE.write_text(remote_tag, encoding="utf-8")
+
+        # ── Bat: swap file, restart, self-delete ─────────────────────────────
+        exe = sys.executable
+        bat = BASE_DIR / "_update.bat"
+        bat.write_text(
+            "@echo off\n"
+            "timeout /t 1 /nobreak >nul\n"
+            f"move /y \"{tmp}\" \"{script}\"\n"
+            f"start \"\" \"{exe}\" \"{script}\"\n"
+            "del \"%~f0\"\n",
+            encoding="utf-8"
+        )
+
+        instant_print(f"  Update auf v{remote_tag} erfolgreich \u2014 Neustart\u2026", SNAP_G)
+        time.sleep(0.5)
+        import subprocess
+        subprocess.Popen(str(bat), shell=True)
+        sys.exit(0)
+
+    except SystemExit:
+        raise
     except Exception as e:
-        pretty_print(f"Could not check version (network error): {e}", SNAP_W)
-        pretty_print("Continuing offline.", SNAP_W)
+        instant_print(f"  Update-Check fehlgeschlagen: {e}", SNAP_W)
+        instant_print("  Starte offline weiter.", SNAP_W)
         return True
 
 # ----------------------------------------------------------------------
