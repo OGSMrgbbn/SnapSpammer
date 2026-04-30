@@ -47,20 +47,68 @@ BASE_DIR = Path(__file__).parent.resolve()
 SETTINGS_PATH = BASE_DIR / "settings.json"
 SNAP_IMAGE = BASE_DIR / "snapscore_100k.png"
 
-# RGB Color Palette
-SNAP_Y = Fore.YELLOW
+# ── Color Palette ──────────────────────────────────────────────────────────
+# Primary accent:  Yellow/Gold  (brand color)
+# Secondary:       Cyan         (interactive elements)
+# Success:         Green
+# Error/Danger:    Red
+# Neutral:         White / dim gray
+SNAP_Y   = Fore.YELLOW
 SNAP_ACC = Fore.LIGHTYELLOW_EX
-SNAP_W = Fore.WHITE
-SNAP_R = Fore.LIGHTRED_EX
-SNAP_G = Fore.LIGHTGREEN_EX
-SNAP_C = Fore.LIGHTCYAN_EX
-SNAP_M = Fore.LIGHTMAGENTA_EX
-SNAP_B = Fore.LIGHTBLUE_EX
+SNAP_W   = Fore.WHITE
+SNAP_R   = Fore.LIGHTRED_EX
+SNAP_G   = Fore.LIGHTGREEN_EX
+SNAP_C   = Fore.LIGHTCYAN_EX
+SNAP_M   = Fore.LIGHTMAGENTA_EX
+SNAP_B   = Fore.LIGHTBLUE_EX
+SNAP_DIM = Style.DIM
 
-# Rainbow colors for animations
+# Gradient palettes
 RAINBOW = [Fore.RED, Fore.LIGHTYELLOW_EX, Fore.YELLOW, Fore.GREEN, Fore.CYAN, Fore.BLUE, Fore.MAGENTA]
-FIRE = [Fore.RED, Fore.LIGHTYELLOW_EX, Fore.YELLOW, Fore.WHITE]
-CYBER = [Fore.CYAN, Fore.LIGHTCYAN_EX, Fore.WHITE, Fore.LIGHTGREEN_EX]
+FIRE    = [Fore.RED, Fore.LIGHTYELLOW_EX, Fore.YELLOW, Fore.WHITE]
+CYBER   = [Fore.CYAN, Fore.LIGHTCYAN_EX, Fore.WHITE, Fore.LIGHTGREEN_EX]
+
+# Box-drawing constants  (used throughout the new UI)
+_W  = 72                      # total inner width of panels
+_TL = "╔"; _TR = "╗"
+_BL = "╚"; _BR = "╝"
+_HL = "═"; _VL = "║"
+_ML = "╠"; _MR = "╣"
+_SL = "├"; _SR = "┤"; _SH = "─"
+
+def _box_top(title="", color=SNAP_Y):
+    if title:
+        pad   = _W - len(title) - 2
+        left  = pad // 2
+        right = pad - left
+        line  = _TL + _HL * left + " " + title + " " + _HL * right + _TR
+    else:
+        line = _TL + _HL * _W + _TR
+    print(color + line + Style.RESET_ALL)
+
+def _box_bot(color=SNAP_Y):
+    print(color + _BL + _HL * _W + _BR + Style.RESET_ALL)
+
+def _box_sep(label="", color=SNAP_Y):
+    if label:
+        pad   = _W - len(label) - 2
+        right = pad
+        line  = _ML + " " + label + " " + _HL * right + _MR
+    else:
+        line = _ML + _HL * _W + _MR
+    print(color + line + Style.RESET_ALL)
+
+def _box_row(text="", color=SNAP_W, accent=SNAP_Y):
+    """Print a padded row inside a box."""
+    # strip ANSI codes for length calculation
+    import re as _re
+    ansi_escape = _re.compile(r'\x1b\[[0-9;]*m')
+    raw_len = len(ansi_escape.sub('', text))
+    pad = max(0, _W - raw_len - 2)   # 1 space margin each side
+    print(accent + _VL + Style.RESET_ALL + " " + text + " " * pad + " " + accent + _VL + Style.RESET_ALL)
+
+def _box_empty(accent=SNAP_Y):
+    _box_row("", accent=accent)
 
 # ----------------------------------------------------------------------
 # Version handling
@@ -259,70 +307,58 @@ def save_settings(data):
 # ----------------------------------------------------------------------
 # EPIC ASCII Banner
 # ----------------------------------------------------------------------
+# ── Compact wordmark (fits 80-col terminals) ────────────────────────────────
 BANNER_LINES = [
-    "░██████╗███╗░░██╗░█████╗░██████╗░░██████╗██████╗░░█████╗░███╗░░░███╗███╗░░░███╗███████╗██████╗░",
-    "██╔════╝████╗░██║██╔══██╗██╔══██╗██╔════╝██╔══██╗██╔══██╗████╗░████║████╗░████║██╔════╝██╔══██╗",
-    "╚█████╗░██╔██╗██║███████║██████╔╝╚█████╗░██████╔╝███████║██╔████╔██║██╔████╔██║█████╗░░██████╔╝",
-    "░╚═══██╗██║╚████║██╔══██║██╔═══╝░░╚═══██╗██╔═══╝░██╔══██║██║╚██╔╝██║██║╚██╔╝██║██╔══╝░░██╔══██╗",
-    "██████╔╝██║░╚███║██║░░██║██║░░░░░██████╔╝██║░░░░░██║░░██║██║░╚═╝░██║██║░╚═╝░██║███████╗██║░░██║",
-    "╚═════╝░╚═╝░░╚══╝╚═╝░░╚═╝╚═╝░░░░░╚═════╝░╚═╝░░░░░╚═╝░░╚═╝╚═╝░░░░░╚═╝╚═╝░░░░░╚═╝╚══════╝╚═╝░░╚═╝"
+    "  ███████╗███╗  ██╗ █████╗ ██████╗ ███████╗██████╗  █████╗ ███╗  ███╗",
+    "  ██╔════╝████╗ ██║██╔══██╗██╔══██╗██╔════╝██╔══██╗██╔══██╗████╗████║",
+    "  ███████╗██╔██╗██║███████║██████╔╝███████╗██████╔╝███████║██╔██╔╝██║",
+    "  ╚════██║██║╚████║██╔══██║██╔═══╝ ╚════██║██╔═══╝ ██╔══██║██║╚═╝ ██║",
+    "  ███████║██║ ╚███║██║  ██║██║     ███████║██║     ██║  ██║██║    ██║",
+    "  ╚══════╝╚═╝  ╚══╝╚═╝  ╚═╝╚═╝     ╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝    ╚═╝",
 ]
 
-TURBO_ART = """
-    ⚡ T U R B O   M O D E   A C T I V E ⚡
-"""
-
 def print_banner():
-    """Epic rainbow animated banner"""
+    """Clean, professional header banner."""
     print("")
+    # Wordmark gradient  yellow → white
+    grad = [Fore.YELLOW, Fore.YELLOW, Fore.LIGHTYELLOW_EX, Fore.WHITE, Fore.LIGHTYELLOW_EX, Fore.YELLOW]
     for i, line in enumerate(BANNER_LINES):
-        color = RAINBOW[i % len(RAINBOW)]
-        print(color + line + Style.RESET_ALL)
-        time.sleep(0.02)
+        print(grad[i % len(grad)] + line + Style.RESET_ALL)
     print("")
-    fire_print("    ⚡ TURBO EDITION ⚡  |  by mrgbbn  |  ANONYMOUS MODE", delay=0.002)
-    print(SNAP_C + "    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" + Style.RESET_ALL)
+    # Sub-header bar
+    sub  = f"  v{VERSION}   ·   by mrgbbn   ·   TURBO EDITION"
+    pad  = max(0, 74 - len(sub))
+    print(Fore.YELLOW + "  " + "═" * 70 + Style.RESET_ALL)
+    print(Fore.LIGHTYELLOW_EX + sub + " " * pad + Style.RESET_ALL)
+    print(Fore.YELLOW + "  " + "═" * 70 + Style.RESET_ALL)
     print("")
 
 def boot_sequence():
-    """Epic boot sequence with animations"""
+    """Clean professional boot sequence."""
     clear()
-    
-    # Glitch intro
-    glitch_text = ">>> INITIALIZING SNAPSPAMMER <<<"
-    for _ in range(3):
-        for color in [SNAP_R, SNAP_G, SNAP_B]:
-            sys.stdout.write(f"\r{color}{glitch_text}{Style.RESET_ALL}")
-            sys.stdout.flush()
-            time.sleep(0.05)
-    print("")
-    print("")
-    
-    # Loading bar animation
+    print_banner()
+
     steps = [
-        ("Initializing TURBO engine", SNAP_R),
-        ("Loading stealth protocols", SNAP_M),
-        ("Calibrating click precision", SNAP_C),
-        ("Optimizing spam algorithms", SNAP_G),
-        ("Bypassing rate limits", SNAP_Y),
-        ("SYSTEM READY", SNAP_G),
+        ("Initializing engine     ", SNAP_C),
+        ("Loading configuration   ", SNAP_C),
+        ("Calibrating automation  ", SNAP_C),
+        ("Checking for updates    ", SNAP_C),
+        ("System ready            ", SNAP_G),
     ]
-    
+
+    print(Fore.YELLOW + "  " + "─" * 50 + Style.RESET_ALL)
     for text, color in steps:
-        sys.stdout.write(f"{color}⚡ {text}")
-        sys.stdout.flush()
-        for _ in range(3):
-            time.sleep(0.1)
-            sys.stdout.write(f"{color}.")
+        bar = ""
+        for j in range(20):
+            bar += "█"
+            filled = bar.ljust(20, "░")
+            sys.stdout.write(f"\r  {SNAP_DIM}  {color}{text}{Style.RESET_ALL}  {Fore.YELLOW}[{filled}]{Style.RESET_ALL}")
             sys.stdout.flush()
-        print(f" {SNAP_G}✓{Style.RESET_ALL}")
-        time.sleep(0.05)
-    
+            time.sleep(0.015)
+        print(f"  {SNAP_G}✓{Style.RESET_ALL}")
+    print(Fore.YELLOW + "  " + "─" * 50 + Style.RESET_ALL)
     print("")
-    rainbow_print("████████████████████████████████████████████████████", delay=0.001)
-    fire_print("   🔥 SNAPSPAMMER TURBO - READY TO DESTROY 🔥", delay=0.002)
-    rainbow_print("████████████████████████████████████████████████████", delay=0.001)
-    time.sleep(0.5)
+    time.sleep(0.3)
     clear()
 
 # ----------------------------------------------------------------------
@@ -896,47 +932,54 @@ def ensure_snap_image():
 def settings_menu(settings):
     clear()
     print_banner()
-    rainbow_print("═══════════════ EINSTELLUNGEN ═══════════════", delay=0.001)
-    print(f"  {SNAP_W}ENTER drücken um aktuellen Wert beizubehalten{Style.RESET_ALL}")
-    print("")
+    _box_top("SETTINGS", SNAP_Y)
+    _box_row(f"  {SNAP_DIM}{SNAP_W}ENTER = aktuellen Wert behalten{Style.RESET_ALL}", accent=SNAP_Y)
     try:
-        # ── ALLGEMEIN ──────────────────────────────────────────────────
-        cyber_print("  ▸ ALLGEMEIN", delay=0.001)
-        print(f"  {SNAP_W}{'─'*48}{Style.RESET_ALL}")
+        # ── ALLGEMEIN ─────────────────────────────────────────────────
+        _box_sep("GENERAL", SNAP_Y)
         turbo = settings.get('turbo_mode', True)
-        t_txt = f"{SNAP_G}AN{Style.RESET_ALL}" if turbo else f"{SNAP_R}AUS{Style.RESET_ALL}"
-        t = input(f"  {SNAP_C}Turbo-Modus [{t_txt}{SNAP_C}] (j=an / n=aus): {Style.RESET_ALL}").strip().lower()
+        t_txt = f"{SNAP_G}AN {Style.RESET_ALL}" if turbo else f"{SNAP_R}AUS{Style.RESET_ALL}"
+        _box_row(f"  Turbo-Modus  [{t_txt}]  →  j = an,  n = aus", accent=SNAP_Y)
+        _box_bot(SNAP_Y)
+        t = input(f"  {SNAP_Y}›{Style.RESET_ALL} Turbo: ").strip().lower()
         if t == 'j': settings['turbo_mode'] = True
         elif t == 'n': settings['turbo_mode'] = False
-        print("")
 
-        # ── SNAP BOOST ────────────────────────────────────────────────
-        cyber_print("  ▸ SNAP BOOST", delay=0.001)
-        print(f"  {SNAP_W}{'─'*48}{Style.RESET_ALL}")
-        ld = input(f"  {SNAP_Y}Loop-Delay       [{SNAP_C}{settings.get('loop_delay')}{SNAP_Y}] s : {Style.RESET_ALL}").strip()
+        # ── SNAP BOOST ───────────────────────────────────────────────
+        print("")
+        _box_top("SNAP BOOST", SNAP_Y)
+        _box_row(f"  Loop-Delay       {SNAP_C}{settings.get('loop_delay')}{Style.RESET_ALL} s", accent=SNAP_Y)
+        _box_row(f"  Click-Delay      {SNAP_C}{settings.get('click_delay')}{Style.RESET_ALL} s", accent=SNAP_Y)
+        _box_row(f"  Shortcut-Größe   {SNAP_C}{settings.get('shortcut_count')}{Style.RESET_ALL}",  accent=SNAP_Y)
+        _box_bot(SNAP_Y)
+        ld = input(f"  {SNAP_Y}›{Style.RESET_ALL} Loop-Delay   [{SNAP_C}{settings.get('loop_delay')}{Style.RESET_ALL}]: ").strip()
         if ld: settings['loop_delay'] = float(ld)
-        cd = input(f"  {SNAP_Y}Click-Delay      [{SNAP_C}{settings.get('click_delay')}{SNAP_Y}] s : {Style.RESET_ALL}").strip()
+        cd = input(f"  {SNAP_Y}›{Style.RESET_ALL} Click-Delay  [{SNAP_C}{settings.get('click_delay')}{Style.RESET_ALL}]: ").strip()
         if cd: settings['click_delay'] = float(cd)
-        sc = input(f"  {SNAP_Y}Shortcut-Größe   [{SNAP_C}{settings.get('shortcut_count')}{SNAP_Y}]   : {Style.RESET_ALL}").strip()
+        sc = input(f"  {SNAP_Y}›{Style.RESET_ALL} Shortcut     [{SNAP_C}{settings.get('shortcut_count')}{Style.RESET_ALL}]: ").strip()
         if sc: settings['shortcut_count'] = int(sc)
-        print("")
 
-        # ── MESSAGE SPAM ──────────────────────────────────────────────
-        cyber_print("  ▸ MESSAGE SPAM", delay=0.001)
-        print(f"  {SNAP_W}{'─'*48}{Style.RESET_ALL}")
+        # ── MESSAGE SPAM ─────────────────────────────────────────────
+        print("")
         cur_msg = str(settings.get('spam_message', ''))[:35]
-        msg = input(f"  {SNAP_M}Nachricht        [{SNAP_C}{cur_msg}{SNAP_M}]: {Style.RESET_ALL}").strip()
+        _box_top("MESSAGE SPAM", SNAP_Y)
+        _box_row(f"  Nachricht        {SNAP_C}{cur_msg}{Style.RESET_ALL}",                             accent=SNAP_Y)
+        _box_row(f"  Anzahl           {SNAP_C}{settings.get('spam_count', 100)}{Style.RESET_ALL}",        accent=SNAP_Y)
+        _box_row(f"  Spam-Delay       {SNAP_C}{settings.get('spam_delay', 0.05)}{Style.RESET_ALL} s",   accent=SNAP_Y)
+        _box_bot(SNAP_Y)
+        msg = input(f"  {SNAP_Y}›{Style.RESET_ALL} Nachricht  [{SNAP_C}{cur_msg}{Style.RESET_ALL}]: ").strip()
         if msg: settings['spam_message'] = msg
-        cnt = input(f"  {SNAP_M}Anzahl           [{SNAP_C}{settings.get('spam_count', 100)}{SNAP_M}]   : {Style.RESET_ALL}").strip()
+        cnt = input(f"  {SNAP_Y}›{Style.RESET_ALL} Anzahl     [{SNAP_C}{settings.get('spam_count', 100)}{Style.RESET_ALL}]: ").strip()
         if cnt: settings['spam_count'] = int(cnt)
-        spd = input(f"  {SNAP_M}Spam-Delay       [{SNAP_C}{settings.get('spam_delay', 0.05)}{SNAP_M}] s : {Style.RESET_ALL}").strip()
+        spd = input(f"  {SNAP_Y}›{Style.RESET_ALL} Spam-Delay [{SNAP_C}{settings.get('spam_delay', 0.05)}{Style.RESET_ALL}]: ").strip()
         if spd: settings['spam_delay'] = float(spd)
     except (ValueError, KeyboardInterrupt):
-        instant_print("  ⚠ Ungültige Eingabe – vorherige Werte beibehalten.", SNAP_R)
+        print("")
+        instant_print(f"  {SNAP_R}  Ungültige Eingabe – Werte beibehalten.{Style.RESET_ALL}", SNAP_R)
     save_settings(settings)
     print("")
-    instant_print("  ✓ Einstellungen gespeichert!", SNAP_G)
-    input(f"  {SNAP_W}ENTER zum Fortfahren...{Style.RESET_ALL}")
+    instant_print(f"  {SNAP_G}✓ Einstellungen gespeichert.{Style.RESET_ALL}", SNAP_G)
+    input(f"  {SNAP_DIM}{SNAP_W}ENTER zum Fortfahren …{Style.RESET_ALL}")
 
 def configure_positions(settings):
     clear()
@@ -983,38 +1026,44 @@ def import_positions(settings):
 def help_menu(settings):
     clear()
     print_banner()
-    rainbow_print("═══════════════ HELP ═══════════════", delay=0.001)
-    print("")
-    cyber_print("Opening README and Snapchat Web...", delay=0.001)
+    _box_top("HELP", SNAP_Y)
+    _box_row(f"  {SNAP_C}Opening README and Snapchat Web…{Style.RESET_ALL}", accent=SNAP_Y)
+    _box_bot(SNAP_Y)
     open_help_pages(settings)
-    input(f"{SNAP_W}Press ENTER to return...{Style.RESET_ALL}")
+    print("")
+    input(f"  {SNAP_DIM}{SNAP_W}ENTER to return …{Style.RESET_ALL}")
 
 def estimate_menu(settings):
     clear()
     print_banner()
-    rainbow_print("═══ TIME ESTIMATOR ═══", delay=0.001)
+    _box_top("TIME ESTIMATOR", SNAP_Y)
+    _box_bot(SNAP_Y)
+    print("")
     try:
-        n = int(input(f"{SNAP_Y}How many snaps? {Style.RESET_ALL}"))
-    except:
-        instant_print("⚠ Invalid number!", SNAP_R)
-        input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+        n = int(input(f"  {SNAP_Y}›{Style.RESET_ALL} Anzahl Snaps: "))
+    except Exception:
+        instant_print(f"  {SNAP_R}Ungültige Zahl.{Style.RESET_ALL}", SNAP_R)
+        input(f"  {SNAP_DIM}{SNAP_W}ENTER …{Style.RESET_ALL}")
         return
-    bot = SnapBot(settings)
+    bot  = SnapBot(settings)
     secs = bot.estimate_time(n)
     mins = secs / 60
     print("")
-    fire_print(f"⏱ Estimated time: {int(secs)} seconds ({mins:.1f} minutes)", delay=0.002)
-    input(f"{SNAP_W}Press ENTER...{Style.RESET_ALL}")
+    _box_top("RESULT", SNAP_Y)
+    _box_row(f"  {SNAP_C}{n}{Style.RESET_ALL} Snaps  →  ca. {SNAP_Y}{int(secs)}{Style.RESET_ALL} s  ({SNAP_Y}{mins:.1f}{Style.RESET_ALL} min)", accent=SNAP_Y)
+    _box_bot(SNAP_Y)
+    print("")
+    input(f"  {SNAP_DIM}{SNAP_W}ENTER …{Style.RESET_ALL}")
 
 def exit_screen():
     clear()
-    print("")
-    rainbow_print("████████████████████████████████████████████████████████", delay=0.002)
-    print("")
-    fire_print("     Thanks for using SNAPSPAMMER TURBO!", delay=0.003)
-    cyber_print("     https://github.com/OGSMrgbbn/SnapSpammer", delay=0.003)
-    print("")
-    rainbow_print("████████████████████████████████████████████████████████", delay=0.002)
+    print_banner()
+    _box_top("GOODBYE", SNAP_Y)
+    _box_empty(SNAP_Y)
+    _box_row(f"  Thanks for using {SNAP_Y}SnapSpammer TURBO{Style.RESET_ALL}.", accent=SNAP_Y)
+    _box_row(f"  {SNAP_DIM}{SNAP_W}https://github.com/OGSMrgbbn/SnapSpammer{Style.RESET_ALL}", accent=SNAP_Y)
+    _box_empty(SNAP_Y)
+    _box_bot(SNAP_Y)
     print("")
 
 # ----------------------------------------------------------------------
@@ -1035,48 +1084,94 @@ def main():
         clear()
         print_banner()
 
-        # ── Status-Leiste ──────────────────────────────────────────────
-        turbo = settings.get('turbo_mode', True)
-        t_lbl = f"{SNAP_G}⚡ TURBO AN{Style.RESET_ALL}" if turbo else f"{SNAP_R}✗ TURBO AUS{Style.RESET_ALL}"
-        p_lbl = f"{SNAP_Y}🔑 PREMIUM{Style.RESET_ALL}" if is_premium(settings) else f"{SNAP_W}FREE{Style.RESET_ALL}"
-        print(f"  {t_lbl}  {SNAP_W}│{Style.RESET_ALL}  Loop: {SNAP_C}{settings.get('loop_delay')}s{Style.RESET_ALL}  {SNAP_W}│{Style.RESET_ALL}  Click: {SNAP_C}{settings.get('click_delay')}s{Style.RESET_ALL}  {SNAP_W}│{Style.RESET_ALL}  {p_lbl}")
-        print(f"  {SNAP_W}{'─' * 52}{Style.RESET_ALL}")
-        print("")
+        # ── Status bar ─────────────────────────────────────────────
+        turbo   = settings.get('turbo_mode', True)
+        premium = is_premium(settings)
+        t_dot   = SNAP_G + "●" + Style.RESET_ALL if turbo   else SNAP_R + "○" + Style.RESET_ALL
+        p_dot   = SNAP_Y + "●" + Style.RESET_ALL if premium else SNAP_DIM + SNAP_W + "○" + Style.RESET_ALL
 
-        # ── 📸  SNAP BOOST ────────────────────────────────────────────
-        print(f"  {SNAP_Y}▸ SNAP BOOST{Style.RESET_ALL}")
-        print(f"    {SNAP_G}[1]{Style.RESET_ALL} Positionen einrichten        {SNAP_G}[2]{Style.RESET_ALL} {SNAP_Y}⚡ Boost starten{Style.RESET_ALL}")
-        print("")
+        _box_top("MAIN MENU", SNAP_Y)
+        # status row
+        turbo_txt   = f"{SNAP_G}TURBO ON {Style.RESET_ALL}" if turbo   else f"{SNAP_R}TURBO OFF{Style.RESET_ALL}"
+        premium_txt = f"{SNAP_Y}PREMIUM  {Style.RESET_ALL}" if premium else f"{SNAP_DIM}{SNAP_W}FREE     {Style.RESET_ALL}"
+        status_row  = (
+            f"{t_dot} {turbo_txt}  "
+            f"{SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}  "
+            f"Loop {SNAP_C}{settings.get('loop_delay')}s{Style.RESET_ALL}  "
+            f"{SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}  "
+            f"Click {SNAP_C}{settings.get('click_delay')}s{Style.RESET_ALL}  "
+            f"{SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}  "
+            f"{p_dot} {premium_txt}"
+        )
+        _box_row(status_row, accent=SNAP_Y)
 
-        # ── 💬  MESSAGE SPAM ──────────────────────────────────────────
-        print(f"  {SNAP_M}▸ MESSAGE SPAM{Style.RESET_ALL}")
-        print(f"    {SNAP_G}[3]{Style.RESET_ALL} Positionen einrichten        {SNAP_G}[4]{Style.RESET_ALL} {SNAP_M}💬 Spam starten{Style.RESET_ALL}")
-        print("")
+        # ── SNAP BOOST ────────────────────────────────────────────────
+        _box_sep("SNAP BOOST", SNAP_Y)
+        _box_row(
+            f"  {SNAP_Y}[ 1 ]{Style.RESET_ALL} Positionen einrichten"
+            f"   {SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}   "
+            f"{SNAP_Y}[ 2 ]{Style.RESET_ALL} Boost starten",
+            accent=SNAP_Y
+        )
 
-        # ── 🤖  INTERAKTIONS-ASSISTENT ────────────────────────────────
-        print(f"  {SNAP_C}▸ INTERAKTIONS-ASSISTENT{Style.RESET_ALL}")
-        print(f"    {SNAP_G}[5]{Style.RESET_ALL} Konfigurieren                {SNAP_G}[6]{Style.RESET_ALL} {SNAP_C}▶ Starten{Style.RESET_ALL}")
-        print("")
+        # ── MESSAGE SPAM ─────────────────────────────────────────────
+        _box_sep("MESSAGE SPAM", SNAP_Y)
+        _box_row(
+            f"  {SNAP_Y}[ 3 ]{Style.RESET_ALL} Positionen einrichten"
+            f"   {SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}   "
+            f"{SNAP_Y}[ 4 ]{Style.RESET_ALL} Spam starten",
+            accent=SNAP_Y
+        )
 
-        # ── 🧩  TEXT-BAUKASTEN ────────────────────────────────────────
-        print(f"  {SNAP_B}▸ TEXT-BAUKASTEN{Style.RESET_ALL}")
-        print(f"    {SNAP_G}[7]{Style.RESET_ALL} Baukasten konfigurieren      {SNAP_G}[8]{Style.RESET_ALL} Positionen einrichten")
-        print(f"    {SNAP_G}[9]{Style.RESET_ALL} {SNAP_B}▶ Starten{Style.RESET_ALL}")
-        print("")
+        # ── INTERAKTIONS-ASSISTENT ────────────────────────────────────
+        _box_sep("INTERACTION ASSISTANT", SNAP_Y)
+        _box_row(
+            f"  {SNAP_Y}[ 5 ]{Style.RESET_ALL} Konfigurieren"
+            f"          {SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}   "
+            f"{SNAP_Y}[ 6 ]{Style.RESET_ALL} Starten",
+            accent=SNAP_Y
+        )
 
-        # ── ⚙   TOOLS & EINSTELLUNGEN ────────────────────────────────
-        print(f"  {SNAP_W}▸ TOOLS & EINSTELLUNGEN{Style.RESET_ALL}")
-        print(f"   {SNAP_G}[10]{Style.RESET_ALL} Einstellungen               {SNAP_G}[11]{Style.RESET_ALL} Positionen importieren")
-        print(f"   {SNAP_G}[12]{Style.RESET_ALL} Zeit schätzen               {SNAP_G}[13]{Style.RESET_ALL} Hilfe / Readme")
-        print("")
+        # ── TEXT-BAUKASTEN ────────────────────────────────────────────
+        _box_sep("TEXT BUILDER", SNAP_Y)
+        _box_row(
+            f"  {SNAP_Y}[ 7 ]{Style.RESET_ALL} Baukasten konfigurieren"
+            f" {SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}   "
+            f"{SNAP_Y}[ 8 ]{Style.RESET_ALL} Positionen einrichten",
+            accent=SNAP_Y
+        )
+        _box_row(
+            f"  {SNAP_Y}[ 9 ]{Style.RESET_ALL} Starten",
+            accent=SNAP_Y
+        )
+
+        # ── TOOLS ─────────────────────────────────────────────────────
+        _box_sep("TOOLS & SETTINGS", SNAP_Y)
+        _box_row(
+            f"  {SNAP_Y}[10]{Style.RESET_ALL} Einstellungen"
+            f"         {SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}   "
+            f"{SNAP_Y}[11]{Style.RESET_ALL} Positionen importieren",
+            accent=SNAP_Y
+        )
+        _box_row(
+            f"  {SNAP_Y}[12]{Style.RESET_ALL} Zeit schätzen"
+            f"          {SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}   "
+            f"{SNAP_Y}[13]{Style.RESET_ALL} Hilfe / Readme",
+            accent=SNAP_Y
+        )
 
         # ── PREMIUM / EXIT ────────────────────────────────────────────
-        print(f"  {SNAP_W}{'─' * 52}{Style.RESET_ALL}")
-        print(f"   {SNAP_Y}[14]{Style.RESET_ALL} {SNAP_Y}🔑 Premium-Key{Style.RESET_ALL}                {SNAP_R}[0]{Style.RESET_ALL} {SNAP_R}Beenden{Style.RESET_ALL}")
-        print(f"  {SNAP_W}{'─' * 52}{Style.RESET_ALL}")
+        _box_sep("", SNAP_Y)
+        _box_row(
+            f"  {SNAP_Y}[14]{Style.RESET_ALL} Premium-Key aktivieren"
+            f"  {SNAP_DIM}{SNAP_W}│{Style.RESET_ALL}   "
+            f"{SNAP_R}[ 0 ]{Style.RESET_ALL} Beenden",
+            accent=SNAP_Y
+        )
+        _box_bot(SNAP_Y)
         print("")
 
-        c = input(f"  {SNAP_Y}› Auswahl: {Style.RESET_ALL}").strip()
+        c = input(f"  {SNAP_Y}›{Style.RESET_ALL} Auswahl: ").strip()
 
         if c == '0':
             save_settings(settings)

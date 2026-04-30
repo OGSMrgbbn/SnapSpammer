@@ -1,0 +1,11 @@
+# Keys & Secrets
+premium_keys.txt
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Runtime / local state
+settings.json
+*.log
