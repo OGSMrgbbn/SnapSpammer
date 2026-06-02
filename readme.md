@@ -1,6 +1,7 @@
 # 👻 **SnapchatBoost**
 
-![SnapchatBoost Banner](https://github.com/user-attachments/assets/e632e18e-586d-48e4-b535-a830b5ac1405)
+![SnapchatBoost Banner](<img width="343" height="38" alt="image" src="https://github.com/user-attachments/assets/15d88ae4-9960-4391-b81a-bf480eb391d6" />
+)
 
 > **Automate Snapchat snap sending on `web.snapchat.com`** — **fast, simple, and fully anonymous**.  
 > Built with **Python + GUI automation** (`pyautogui`) for educational and productivity testing.  
